@@ -116,7 +116,7 @@ def get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_items, trade_f
         
         # split refined and raw sugars into sugar cane and sugar beet
         if item in ['Sugar beet', 'Sugar cane']:
-            mat = _split_sugars(m, prod, item)
+            mat = _split_sugars(mat, prod, item)
         
         mat = mat.groupby(['Reporter Country Code (M49)', 'Partner Country Code (M49)',
                            'Reporter Countries', 'Partner Countries', 'Element', 'Year', 'Unit'])[['Value']].sum().reset_index()
@@ -444,17 +444,17 @@ if __name__ == '__main__':
                   # 'jmaiz': ['Maize (corn)'],
                   
                   # othr_grains
-                  'jbarl': ['Barley'],
-                  'jmill': ['Millet'], 
-                  'jsorg': ['Sorghum'], 
-                  'jocer': ['Rye', 'Oats', 'Buckwheat', 'Quinoa', 'Canary seed', 'Fonio', 'Mixed grain', 'Triticale', 'Cereals n.e.c.'], 
+                  # 'jbarl': ['Barley'],
+                  # 'jmill': ['Millet'], 
+                  # 'jsorg': ['Sorghum'], 
+                  # 'jocer': ['Rye', 'Oats', 'Buckwheat', 'Quinoa', 'Canary seed', 'Fonio', 'Mixed grain', 'Triticale', 'Cereals n.e.c.'], 
                   
                   # roots
-                  'jcass': ['Cassava, fresh'], 
-                  'jpota': ['Potatoes'], 
-                  'jswpt': ['Sweet potatoes'],
-                  'jyams': ['Yams'],
-                  'jorat': ['Taro', 'Edible roots and tubers with high starch or inulin content, n.e.c., fresh'],
+                  # 'jcass': ['Cassava, fresh'], 
+                  # 'jpota': ['Potatoes'], 
+                  # 'jswpt': ['Sweet potatoes'],
+                  # 'jyams': ['Yams'],
+                  # 'jorat': ['Taro', 'Edible roots and tubers with high starch or inulin content, n.e.c., fresh'],
                   
                   # vegetables
                   # 'jvege': ['Artichokes', 'Asparagus', 'Broad beans and horse beans, green', 'Cabbages', 'Carrots and turnips', 'Cauliflowers and broccoli',
@@ -464,41 +464,41 @@ if __name__ == '__main__':
                   #           'Peas, green', 'Pumpkins, squash and gourds', 'Spinach', 'String beans', 'Tomatoes'],
                   
                   # fruits
-                  'jbana': ['Bananas'], 
-                  'jplnt': ['Plantains and cooking bananas'], 
-                  'jsubf': ['Apricots', 'Avocados', 'Cantaloupes and other melons', 'Cashewapple', 'Dates', 'Figs', 
-                            'Kiwi fruit', 'Lemons and limes', 'Locust beans (carobs)', 'Mangoes, guavas and mangosteens', 
-                            'Oranges', 'Other citrus fruit, n.e.c.', 'Other fruits, n.e.c.', 'Other tropical fruits, n.e.c.', 'Papayas', 
-                            'Pineapples', 'Pomelos and grapefruits', 'Tangerines, mandarins, clementines', 
-                            'Watermelons', 'Coconuts, in shell'], 
-                  'jtemf': ['Apples', 'Grapes', 'Blueberries', 'Cherries', 'Cranberries', 'Currants', 'Gooseberries', 
-                            'Other berries and fruits of the genus vaccinium n.e.c.', 'Other pome fruits', 'Other stone fruits', 
-                            'Peaches and nectarines', 'Pears', 'Persimmons', 'Plums and sloes', 'Quinces', 'Raspberries', 
-                            'Sour cherries', 'Strawberries', 'Olives'], 
+                  # 'jbana': ['Bananas'], 
+                  # 'jplnt': ['Plantains and cooking bananas'], 
+                  # 'jsubf': ['Apricots', 'Avocados', 'Cantaloupes and other melons', 'Cashewapple', 'Dates', 'Figs', 
+                  #           'Kiwi fruit', 'Lemons and limes', 'Locust beans (carobs)', 'Mangoes, guavas and mangosteens', 
+                  #           'Oranges', 'Other citrus fruit, n.e.c.', 'Other fruits, n.e.c.', 'Other tropical fruits, n.e.c.', 'Papayas', 
+                  #           'Pineapples', 'Pomelos and grapefruits', 'Tangerines, mandarins, clementines', 
+                  #           'Watermelons', 'Coconuts, in shell'], 
+                  # 'jtemf': ['Apples', 'Grapes', 'Blueberries', 'Cherries', 'Cranberries', 'Currants', 'Gooseberries', 
+                  #           'Other berries and fruits of the genus vaccinium n.e.c.', 'Other pome fruits', 'Other stone fruits', 
+                  #           'Peaches and nectarines', 'Pears', 'Persimmons', 'Plums and sloes', 'Quinces', 'Raspberries', 
+                  #           'Sour cherries', 'Strawberries', 'Olives'], 
                   
                   # legumes
-                  'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
-                  'jchkp': ['Chick peas, dry'],
-                  'jcowp': ['Cow peas, dry'],
-                  'jlent': ['Lentils, dry'], 
-                  'jpigp': ['Pigeon peas, dry'], 
-                  'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
+                  # 'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
+                  # 'jchkp': ['Chick peas, dry'],
+                  # 'jcowp': ['Cow peas, dry'],
+                  # 'jlent': ['Lentils, dry'], 
+                  # 'jpigp': ['Pigeon peas, dry'], 
+                  # 'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
                   
                   # soybeans
                   # 'jsoyb': ['Soya beans'],
                   
                   # nuts_seeds
-                  'jgrnd': ['Groundnuts, excluding shelled'], 
-                  'jothr': ['Almonds, in shell', 'Brazil nuts, in shell', 'Cashew nuts, in shell', 'Chestnuts, in shell', 'Hazelnuts, in shell', 
-                            'Other nuts (excluding wild edible nuts and groundnuts), in shell, n.e.c.', 'Pistachios, in shell', 'Walnuts, in shell', 
-                            'Linseed', 'Hempseed', 'Sunflower seed', 'Safflower seed', 'Poppy seed', 'Sesame seed'],
+                  # 'jgrnd': ['Groundnuts, excluding shelled'], 
+                  # 'jothr': ['Almonds, in shell', 'Brazil nuts, in shell', 'Cashew nuts, in shell', 'Chestnuts, in shell', 'Hazelnuts, in shell', 
+                  #           'Other nuts (excluding wild edible nuts and groundnuts), in shell, n.e.c.', 'Pistachios, in shell', 'Walnuts, in shell', 
+                  #           'Linseed', 'Hempseed', 'Sunflower seed', 'Safflower seed', 'Poppy seed', 'Sesame seed'],
                   
                   
                   # oil_veg
-                  'jrpsd': ['Rape or colza seed'], 
-                  'jsnfl': ['Sunflower seed'], 
-                  'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Safflower seed', 'Sesame seed',
-                            'Castor oil seeds', 'Cotton seed', 'Coconuts, in shell', 'Mustard seed', 'Olives'], 
+                  # 'jrpsd': ['Rape or colza seed'], 
+                  # 'jsnfl': ['Sunflower seed'], 
+                  # 'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Safflower seed', 'Sesame seed',
+                  #           'Castor oil seeds', 'Cotton seed', 'Coconuts, in shell', 'Mustard seed', 'Olives'], 
                   
                   # oil_palm
                   # 'jpalm': ['Oil palm fruit'], 
