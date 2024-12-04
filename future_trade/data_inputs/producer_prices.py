@@ -8,7 +8,7 @@ data_dir_prefix = '../../data/'
 
 def get_area_codes():
 
-    FAO_area_codes = pd.read_csv('../../RA/Data/Country_group/regions.csv')
+    FAO_area_codes = pd.read_csv('../../OPSIS/Data/Country_group/regions.csv')
     FAO_area_codes = FAO_area_codes[['Abbreviation', 'M49 Code', 'iso3', 'Region Name', 'Sub-region Name', 'Intermediate Region Name']]
     FAO_area_codes.loc[FAO_area_codes['Intermediate Region Name'].isna(), 'Intermediate Region Name'] = FAO_area_codes[FAO_area_codes['Intermediate Region Name'].isna()]['Sub-region Name']
     # removing countries which don't have corresponding FBS/SUA or consumption data - leaves a total of 153 unique regions (Abbreviation is the unique identifier here)
@@ -264,32 +264,80 @@ def reg_predict(df):
 
 if __name__ == '__main__':
 
-    items_dict = {'wheat': ['Wheat'],
-                  'rice': ['Rice'],
-                  'maize': ['Maize (corn)'],
-                  'othr_grains': ['Rye', 'Barley', 'Oats', 'Sorghum', 'Buckwheat', 'Millet', 'Quinoa', 'Canary seed', 'Fonio', 'Mixed grain', 'Triticale', 'Cereals n.e.c.'], 
-                  'roots': ['Cassava, fresh', 'Potatoes', 'Sweet potatoes', 'Taro', 'Yams', 'Edible roots and tubers with high starch or inulin content, n.e.c., fresh'],
-                  'vegetables': ['Artichokes', 'Asparagus', 'Broad beans and horse beans, green', 'Cabbages', 'Carrots and turnips', 'Cauliflowers and broccoli',
-                                 'Chillies and peppers, green (Capsicum spp. and Pimenta spp.)', 'Cucumbers and gherkins', 'Eggplants (aubergines)', 'Green corn (maize)',
-                                 'Green garlic', 'Leeks and other alliaceous vegetables', 'Lettuce and chicory', 'Okra',
-                                 'Onions and shallots, dry (excluding dehydrated)', 'Onions and shallots, green', 'Other beans, green', 'Other vegetables, fresh n.e.c.',
-                                 'Peas, green', 'Pumpkins, squash and gourds', 'Spinach', 'String beans', 'Tomatoes'], #  'Mushrooms and truffles'
-                  'fruits': ['Apples', 'Apricots', 'Avocados', 'Bananas', 'Blueberries', 'Cantaloupes and other melons', 'Cherries', 'Cranberries', 
-                             'Currants', 'Dates', 'Figs', 'Gooseberries', 'Grapes', 'Kiwi fruit', 'Lemons and limes', 'Locust beans (carobs)', 'Mangoes, guavas and mangosteens', 
-                             'Oranges', 'Other berries and fruits of the genus vaccinium n.e.c.', 'Other citrus fruit, n.e.c.', 'Other fruits, n.e.c.', 'Other pome fruits',
-                             'Other stone fruits', 'Other tropical fruits, n.e.c.', 'Papayas', 'Peaches and nectarines', 'Pears', 'Persimmons', 'Pineapples',  
-                             'Plantains and cooking bananas', 'Plums and sloes', 'Pomelos and grapefruits', 'Quinces', 'Raspberries', 'Sour cherries', 'Strawberries', 
-                             'Tangerines, mandarins, clementines', 'Watermelons', 'Olives', 'Coconuts, in shell'], # 'Cashewapple'
-                  'legumes': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry', 'Chick peas, dry', 'Cow peas, dry', 'Lentils, dry', 'Lupins',
-                             'Other pulses n.e.c.', 'Peas, dry', 'Pigeon peas, dry', 'Vetches'],
-                  'soybeans': ['Soya beans'], 
-                  'nuts_seeds': ['Almonds, in shell', 'Cashew nuts, in shell', 'Chestnuts, in shell', 'Hazelnuts, in shell', 
-                                 'Other nuts (excluding wild edible nuts and groundnuts), in shell, n.e.c.', 'Pistachios, in shell', 'Walnuts, in shell', 
-                                 'Groundnuts, excluding shelled', 'Linseed', 'Sunflower seed', 'Safflower seed', 'Poppy seed', 'Sesame seed'], # 'Brazil nuts, in shell', 'Hempseed'
-                  'oil_veg': ['Groundnuts, excluding shelled', 'Linseed', 'Sunflower seed', 'Safflower seed', 'Sesame seed',
-                              'Castor oil seeds', 'Coconuts, in shell', 'Mustard seed', 'Olives', 'Rape or colza seed'], # 'Cotton seed', 'Hempseed'
-                  'oil_palm': ['Oil palm fruit'], 
-                  'sugar': ['Sugar cane', 'Sugar beet'] # 'Other sugar crops n.e.c.'
+    items_dict = {              
+                  # wheat
+                  # 'jwhea': ['Wheat'],
+                  
+                  # rice
+                  # 'jrice': ['Rice'],
+                  
+                  # maize
+                  # 'jmaiz': ['Maize (corn)'],
+                  
+                  # othr_grains
+                  # 'jbarl': ['Barley'],
+                  # 'jmill': ['Millet'], 
+                  # 'jsorg': ['Sorghum'], 
+                  # 'jocer': ['Rye', 'Oats', 'Buckwheat', 'Quinoa', 'Canary seed', 'Fonio', 'Mixed grain', 'Triticale', 'Cereals n.e.c.'], 
+                  
+                  # roots
+                  # 'jcass': ['Cassava, fresh'], 
+                  # 'jpota': ['Potatoes'], 
+                  # 'jswpt': ['Sweet potatoes'],
+                  # 'jyams': ['Yams'],
+                  # 'jorat': ['Taro', 'Edible roots and tubers with high starch or inulin content, n.e.c., fresh'],
+                  
+                  # vegetables
+                  # 'jvege': ['Artichokes', 'Asparagus', 'Broad beans and horse beans, green', 'Cabbages', 'Carrots and turnips', 'Cauliflowers and broccoli',
+                  #           'Chillies and peppers, green (Capsicum spp. and Pimenta spp.)', 'Cucumbers and gherkins', 'Eggplants (aubergines)', 'Green corn (maize)',
+                  #           'Green garlic', 'Leeks and other alliaceous vegetables', 'Lettuce and chicory', 'Okra',
+                  #           'Onions and shallots, dry (excluding dehydrated)', 'Onions and shallots, green', 'Other beans, green', 'Other vegetables, fresh n.e.c.',
+                  #           'Peas, green', 'Pumpkins, squash and gourds', 'Spinach', 'String beans', 'Tomatoes'], # 'Mushrooms and truffles'
+                  
+                  # fruits
+                  # 'jbana': ['Bananas'], 
+                  # 'jplnt': ['Plantains and cooking bananas'], 
+                  # 'jsubf': ['Apricots', 'Avocados', 'Cantaloupes and other melons', 'Dates', 'Figs', 
+                  #           'Kiwi fruit', 'Lemons and limes', 'Locust beans (carobs)', 'Mangoes, guavas and mangosteens', 
+                  #           'Oranges', 'Other citrus fruit, n.e.c.', 'Other fruits, n.e.c.', 'Other tropical fruits, n.e.c.', 'Papayas', 
+                  #           'Pineapples', 'Pomelos and grapefruits', 'Tangerines, mandarins, clementines', 
+                  #           'Watermelons', 'Coconuts, in shell'], # 'Cashewapple'
+                  # 'jtemf': ['Apples', 'Grapes', 'Blueberries', 'Cherries', 'Cranberries', 'Currants', 'Gooseberries', 
+                  #           'Other berries and fruits of the genus vaccinium n.e.c.', 'Other pome fruits', 'Other stone fruits', 
+                  #           'Peaches and nectarines', 'Pears', 'Persimmons', 'Plums and sloes', 'Quinces', 'Raspberries', 
+                  #           'Sour cherries', 'Strawberries', 'Olives'], 
+                  
+                  # legumes
+                  'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
+                  # 'jchkp': ['Chick peas, dry'],
+                  # 'jcowp': ['Cow peas, dry'],
+                  # 'jlent': ['Lentils, dry'], 
+                  # 'jpigp': ['Pigeon peas, dry'], 
+                  'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
+                  
+                  # soybeans
+                  # 'jsoyb': ['Soya beans'],
+                  
+                  # nuts_seeds
+                  # 'jgrnd': ['Groundnuts, excluding shelled'], 
+                  # 'jothr': ['Almonds, in shell', 'Cashew nuts, in shell', 'Chestnuts, in shell', 'Hazelnuts, in shell', 
+                  #           'Other nuts (excluding wild edible nuts and groundnuts), in shell, n.e.c.', 'Pistachios, in shell', 'Walnuts, in shell', 
+                  #           'Linseed', 'Sunflower seed', 'Safflower seed', 'Poppy seed', 'Sesame seed'], # 'Brazil nuts, in shell', 'Hempseed'
+                  
+                  
+                  # oil_veg
+                  # 'jrpsd': ['Rape or colza seed'], 
+                  # 'jsnfl': ['Sunflower seed'], 
+                  # 'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Safflower seed', 'Sesame seed',
+                  #           'Castor oil seeds', 'Coconuts, in shell', 'Mustard seed', 'Olives'], # 'Cotton seed', 'Hempseed'
+                  
+                  # oil_palm
+                  # 'jpalm': ['Oil palm fruit'], 
+                  
+                  # sugar
+                  # 'jsugb': ['Sugar beet'], 
+                  # 'jsugc': ['Sugar cane']          
+                  
     }
 
     prod = pd.read_csv(f'{data_dir_prefix}FAOSTAT_A-S_E/Production_Crops_Livestock_E_All_Data_(Normalized)/Production_Crops_Livestock_E_All_Data_(Normalized).csv',
@@ -317,7 +365,7 @@ if __name__ == '__main__':
         df_category = df_category.groupby(['Abbreviation'])[['Area', 'Production', 'total_price']].sum().reset_index()
         df_category['Producer_price'] = df_category['total_price'] / df_category['Area']
         df_category = df_category.drop('total_price', axis=1)
-        df_category.to_csv(f'../../RA/Data/FAOSTAT/FAO_prod_prices/prod_prices_{category}.csv', index=False)
+        df_category.to_csv(f'../../OPSIS/Data/FAOSTAT/FAO_prod_prices/prod_prices_{category}.csv', index=False)
 
 
 
