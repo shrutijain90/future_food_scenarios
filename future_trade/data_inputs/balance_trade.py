@@ -429,7 +429,31 @@ if __name__ == '__main__':
                   'Rape or colza seed': ['Rape or colza seed', 'Rapeseed or canola oil, crude'], # oil to be converted to oil crop
                   'Oil palm fruit': ['Palm oil'], # oil to be converted to oil crop
                   'Sugar beet': ['Sugar beet', 'Refined sugar', 'Raw cane or beet sugar (centrifugal only)'], # trade of sugar to be split, sugar to be converted to sugar crop
-                  'Sugar cane': ['Sugar cane', 'Refined sugar', 'Raw cane or beet sugar (centrifugal only)'] # trade of sugar to be split, sugar to be converted to sugar crop
+                  'Sugar cane': ['Sugar cane', 'Refined sugar', 'Raw cane or beet sugar (centrifugal only)'], # trade of sugar to be split, sugar to be converted to sugar crop
+                  'Milk, Total': ['Butter and Ghee', 'Buttermilk, curdled and acidified milk',
+                                  'Buttermilk, dry', 'Cheese from whole cow milk', 'Cream, fresh',
+                                  'Evaporated & Condensed Milk', 'Ghee from cow milk',
+                                  'Processed cheese', 'Raw milk of cattle',
+                                  'Skim Milk & Buttermilk, Dry', 'Skim milk and whey powder',
+                                  'Skim milk of cows', 'Whey, fresh and dry (milk equivalent)',
+                                  'Whole milk powder', 'Whole milk, evaporated',
+                                  'Butter of cow milk', 'Cheese from skimmed cow milk',
+                                  'Skim milk, condensed', 'Whey cheese', 'Whole milk, condensed',
+                                  'Cheese from milk of sheep, fresh or processed',
+                                  'Skim milk, evaporated'], # assuming that processing factors and by products take care of each other
+                  'Beef and Buffalo Meat, primary': ['Bovine meat, salted, dried or smoked', 'Meat of buffalo, fresh or chilled',
+                                                     'Meat of cattle boneless, fresh or chilled', 'Meat of cattle with the bone, fresh or chilled',
+                                                     'Sausages and similar products of meat, offal or blood of beef and veal'],
+                  'Eggs Primary': ['Hen eggs in shell, fresh', 'Eggs from other birds in shell, fresh, n.e.c.',
+                                   'Eggs, dried', 'Eggs, liquid'],
+                  'Meat, Poultry': ['Meat of chickens, fresh or chilled', 'Meat of ducks, fresh or chilled',
+                                    'Meat of geese, fresh or chilled', 'Meat of pigeons and other birds n.e.c., fresh, chilled or frozen',
+                                    'Meat of turkeys, fresh or chilled', 'Poultry meat preparations'],
+                  'Sheep and Goat Meat': ['Meat of goat, fresh or chilled', 'Meat of sheep, fresh or chilled'],
+                  'Meat of pig with the bone, fresh or chilled': ['Meat of pig boneless, fresh or chilled',
+                                                                  'Meat of pig with the bone, fresh or chilled',
+                                                                  'Pig meat, cuts, salted, dried or smoked (bacon and ham)',
+                                                                  'Sausages and similar products of meat, offal or blood of pig']
     }
 
     # based on 'IMPACT_code column in crop correspondance tables'    
@@ -504,8 +528,16 @@ if __name__ == '__main__':
                   # 'jpalm': ['Oil palm fruit'], 
                   
                   # sugar
-                  'jsugb': ['Sugar beet'], 
-                  'jsugc': ['Sugar cane']              
+                  # 'jsugb': ['Sugar beet'], 
+                  # 'jsugc': ['Sugar cane'],   
+
+                  # for calculating feed
+                  'milk': ['Milk, Total'],
+                  'beef': ['Beef and Buffalo Meat, primary'],
+                  'eggs': ['Eggs Primary'],
+                  'poultry': ['Meat, Poultry'],
+                  'lamb': ['Sheep and Goat Meat'],
+                  'pork': ['Meat of pig with the bone, fresh or chilled']
     }
 
     prod = pd.read_csv(f'{data_dir_prefix}FAOSTAT_A-S_E/Production_Crops_Livestock_E_All_Data_(Normalized)/Production_Crops_Livestock_E_All_Data_(Normalized).csv',
@@ -517,8 +549,8 @@ if __name__ == '__main__':
     trade_factors = pd.read_csv('../../OPSIS/Data/FAOSTAT/trade_factors.csv') # for things like cassava starch etc
     processing_factors = pd.read_csv('../../OPSIS/Data/FAOSTAT/processing_factors.csv') # for oil and sugar crops
     
-    # years = [2017, 2018, 2019, 2020, 2021] # 2022 has some information missing (e.g. production for coconut oil), so considering 2017-2021
-    years = [2012, 2013, 2014, 2015, 2016]
+    years = [2017, 2018, 2019, 2020, 2021] # 2022 has some information missing (e.g. production for coconut oil), so considering 2017-2021
+    # years = [2012, 2013, 2014, 2015, 2016]
     
     FAO_area_codes = get_area_codes()
     
