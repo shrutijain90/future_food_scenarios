@@ -520,9 +520,9 @@ if __name__ == '__main__':
                   
                   # oil_veg
                   # 'jrpsd': ['Rape or colza seed'], 
-                  # 'jsnfl': ['Sunflower seed'], 
-                  # 'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Safflower seed', 'Sesame seed',
-                  #           'Castor oil seeds', 'Cotton seed', 'Coconuts, in shell', 'Mustard seed', 'Olives'], 
+                  'jsnfl': ['Sunflower seed'], 
+                  'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Safflower seed', 'Sesame seed',
+                            'Castor oil seeds', 'Cotton seed', 'Coconuts, in shell', 'Mustard seed', 'Olives'], 
                   
                   # oil_palm
                   # 'jpalm': ['Oil palm fruit'], 
@@ -532,12 +532,12 @@ if __name__ == '__main__':
                   # 'jsugc': ['Sugar cane'],   
 
                   # for calculating feed
-                  'milk': ['Milk, Total'],
-                  'beef': ['Beef and Buffalo Meat, primary'],
-                  'eggs': ['Eggs Primary'],
-                  'poultry': ['Meat, Poultry'],
-                  'lamb': ['Sheep and Goat Meat'],
-                  'pork': ['Meat of pig with the bone, fresh or chilled']
+                  # 'milk': ['Milk, Total'],
+                  # 'beef': ['Beef and Buffalo Meat, primary'],
+                  # 'eggs': ['Eggs Primary'],
+                  # 'poultry': ['Meat, Poultry'],
+                  # 'lamb': ['Sheep and Goat Meat'],
+                  # 'pork': ['Meat of pig with the bone, fresh or chilled']
     }
 
     prod = pd.read_csv(f'{data_dir_prefix}FAOSTAT_A-S_E/Production_Crops_Livestock_E_All_Data_(Normalized)/Production_Crops_Livestock_E_All_Data_(Normalized).csv',
@@ -549,8 +549,8 @@ if __name__ == '__main__':
     trade_factors = pd.read_csv('../../OPSIS/Data/FAOSTAT/trade_factors.csv') # for things like cassava starch etc
     processing_factors = pd.read_csv('../../OPSIS/Data/FAOSTAT/processing_factors.csv') # for oil and sugar crops
     
-    years = [2017, 2018, 2019, 2020, 2021] # 2022 has some information missing (e.g. production for coconut oil), so considering 2017-2021
-    # years = [2012, 2013, 2014, 2015, 2016]
+    # years = [2017, 2018, 2019, 2020, 2021] # 2022 has some information missing (e.g. production for coconut oil), so considering 2017-2021
+    years = [2012, 2013, 2014, 2015, 2016]
     
     FAO_area_codes = get_area_codes()
     
@@ -578,7 +578,7 @@ if __name__ == '__main__':
 
                 # adjustments due to duplication across categories
                 if item in ['Olives', 'Coconuts, in shell', 'Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Sunflower seed', 'Safflower seed', 'Sesame seed']:
-                    if category=='oil_veg':
+                    if category in ['jsnfl', 'jtols']:
                         proc_prop = split_flows(sua, item, year, FAO_area_codes, proc=1)
                     else:
                         proc_prop = split_flows(sua, item, year, FAO_area_codes, proc=0)

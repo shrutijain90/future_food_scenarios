@@ -144,7 +144,7 @@ def combine_data(prod, prod_prices, gdp, sua, item, FAO_area_codes, category):
         prod_year = get_prod(prod, item, year, FAO_area_codes)
     
         if item in ['Olives', 'Coconuts, in shell', 'Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Sunflower seed', 'Safflower seed', 'Sesame seed']:
-            if category=='oil_veg':
+            if category in ['jsnfl', 'jtols']:
                 prod_year = split_prod(sua, prod_year, item, year, FAO_area_codes, proc=1)
             else:
                 prod_year = split_prod(sua, prod_year, item, year, FAO_area_codes, proc=0)
@@ -308,12 +308,12 @@ if __name__ == '__main__':
                   #           'Sour cherries', 'Strawberries', 'Olives'], 
                   
                   # legumes
-                  'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
+                  # 'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
                   # 'jchkp': ['Chick peas, dry'],
                   # 'jcowp': ['Cow peas, dry'],
                   # 'jlent': ['Lentils, dry'], 
                   # 'jpigp': ['Pigeon peas, dry'], 
-                  'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
+                  # 'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
                   
                   # soybeans
                   # 'jsoyb': ['Soya beans'],
@@ -327,9 +327,9 @@ if __name__ == '__main__':
                   
                   # oil_veg
                   # 'jrpsd': ['Rape or colza seed'], 
-                  # 'jsnfl': ['Sunflower seed'], 
-                  # 'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Safflower seed', 'Sesame seed',
-                  #           'Castor oil seeds', 'Coconuts, in shell', 'Mustard seed', 'Olives'], # 'Cotton seed', 'Hempseed'
+                  'jsnfl': ['Sunflower seed'], 
+                  'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Safflower seed', 'Sesame seed',
+                            'Castor oil seeds', 'Coconuts, in shell', 'Mustard seed', 'Olives'], # 'Cotton seed', 'Hempseed'
                   
                   # oil_palm
                   # 'jpalm': ['Oil palm fruit'], 
