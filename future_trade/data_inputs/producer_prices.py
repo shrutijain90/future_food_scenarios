@@ -159,33 +159,6 @@ def combine_data(prod, prod_prices, gdp, sua, item, FAO_area_codes, category):
     df = df[df['GDP'].notnull()].reset_index(drop=True)
     return df
 
-
-def gap_fill(df_gaps, df_prices):
-
-    # fao cost averages by regions
-    df_int_reg_avg = df_prices[['Intermediate Region Name', 'Producer_price']].groupby(['Intermediate Region Name']).mean().reset_index()
-    df_sub_reg_avg = df_prices[['Sub-region Name', 'Producer_price']].groupby(['Sub-region Name']).mean().reset_index()
-    df_reg_avg = df_prices[['Region Name', 'Producer_price']].groupby(['Region Name']).mean().reset_index()
-    df_glo_avg = df_prices[['Producer_price']].mean()
-
-    # filling nans with regional averages
-    df_gaps = df_gaps.merge(df_int_reg_avg.rename(columns={'Producer_price': 'Int_Producer_price'}), how='left').merge(
-        df_sub_reg_avg.rename(columns={'Producer_price': 'Sub_Producer_price'}), how='left').merge(
-        df_reg_avg.rename(columns={'Producer_price': 'Reg_Producer_price'}), how='left')
-    
-    df_gaps['Glo_Producer_price'] = df_glo_avg
-    df_gaps['y_pred'] = df['Producer_price']
-    
-    row_cond1 = (df_gaps['y_pred']==0) & (df_gaps['Int_Producer_price']>0)
-    df_gaps.loc[row_cond1, 'y_pred'] = df_gaps[row_cond1]['Int_Producer_price']
-    row_cond2 = (df_gaps['y_pred']==0) & (df_gaps['Sub_Producer_price']>0)
-    df_gaps.loc[row_cond2, 'y_pred'] = df_gaps[row_cond2]['Sub_Producer_price']
-    row_cond3 = (df_gaps['y_pred']==0) & (df_gaps['Reg_Producer_price']>0)
-    df_gaps.loc[row_cond3, 'y_pred'] = df_gaps[row_cond3]['Reg_Producer_price']
-    df_gaps.loc[df_gaps['y_pred']==0, 'y_pred'] = df_gaps[df_gaps['y_pred']==0]['Glo_Producer_price']
-
-    return df_gaps.drop(['Int_Producer_price', 'Sub_Producer_price', 'Reg_Producer_price', 'Glo_Producer_price'], axis=1)
-
 def reg(df, n, type='log'):
 
     X_cols = [
@@ -200,7 +173,9 @@ def reg(df, n, type='log'):
     print(f"{df[df['Producer_price']>0].shape[0]} countries have producer price data")
 
     if df[df['Producer_price']>0].shape[0]<n:
-        df = gap_fill(df, df[df['Producer_price']>0])
+        
+        df['y_pred'] = 0
+        return df.head(0)
         
     else:
         data = df[df['Producer_price']>0].sort_values(by='Production', ascending=False).head(n)
@@ -220,12 +195,8 @@ def reg(df, n, type='log'):
             df1['y_pred'] = res.predict(df1[X_cols])
             df2_2 = df2[~df2['region_var'].isin(df[df['Producer_price']>0]['region_var'].unique())]
             if len(df2_2)>0:
-                df2_1 = df2[df2['region_var'].isin(df[df['Producer_price']>0]['region_var'].unique())]
-                df2_1['y_pred'] = res2.predict(df2_1[X_cols])
-                df2_2 = gap_fill(df2_2, df[df['Producer_price']>0])
-                if type=='log':
-                    df2_2['y_pred'] = np.log(df2_2['y_pred'])
-                df2 = pd.concat([df2_1, df2_2], axis=0, ignore_index=True)
+                df2 = df2[df2['region_var'].isin(df[df['Producer_price']>0]['region_var'].unique())]
+                df2['y_pred'] = res2.predict(df2[X_cols])
             else:
                 df2['y_pred'] = res2.predict(df2[X_cols])
             df = pd.concat([df1, df2], axis=0, ignore_index=True)
@@ -237,12 +208,71 @@ def reg(df, n, type='log'):
 
     return df
 
-def reg_predict(df):
-    df_sub = df.copy()
-    df_sub['Yield'] = df_sub['Production'] / df_sub['Area']
-    df_sub = df_sub[(df_sub['Production']>0) & ((df_sub['Area']>0))].reset_index(drop=True)
-    df_sub['Producer_price'] = df_sub['Producer_price'] * df_sub['Yield']
+def gap_fill_price(df_gaps, df_prices):
 
+    # fao cost averages by regions
+    df_int_reg_avg = df_prices[['Intermediate Region Name', 'Producer_price']].groupby(['Intermediate Region Name']).mean().reset_index()
+    df_sub_reg_avg = df_prices[['Sub-region Name', 'Producer_price']].groupby(['Sub-region Name']).mean().reset_index()
+    df_reg_avg = df_prices[['Region Name', 'Producer_price']].groupby(['Region Name']).mean().reset_index()
+    df_glo_avg = df_prices[['Producer_price']].mean()
+
+    # filling nans with regional averages
+    df_gaps = df_gaps.merge(df_int_reg_avg.rename(columns={'Producer_price': 'Int_Producer_price'}), how='left').merge(
+        df_sub_reg_avg.rename(columns={'Producer_price': 'Sub_Producer_price'}), how='left').merge(
+        df_reg_avg.rename(columns={'Producer_price': 'Reg_Producer_price'}), how='left')
+    
+    df_gaps['Glo_Producer_price'] = df_glo_avg.values[0]
+    
+    row_cond1 = (df_gaps['y_pred']==0) & (df_gaps['Int_Producer_price']>0)
+    df_gaps.loc[row_cond1, 'y_pred'] = df_gaps[row_cond1]['Int_Producer_price']
+    row_cond2 = (df_gaps['y_pred']==0) & (df_gaps['Sub_Producer_price']>0)
+    df_gaps.loc[row_cond2, 'y_pred'] = df_gaps[row_cond2]['Sub_Producer_price']
+    row_cond3 = (df_gaps['y_pred']==0) & (df_gaps['Reg_Producer_price']>0)
+    df_gaps.loc[row_cond3, 'y_pred'] = df_gaps[row_cond3]['Reg_Producer_price']
+    df_gaps.loc[df_gaps['y_pred']==0, 'y_pred'] = df_gaps[df_gaps['y_pred']==0]['Glo_Producer_price']
+
+    return df_gaps.drop(['Int_Producer_price', 'Sub_Producer_price', 'Reg_Producer_price', 'Glo_Producer_price'], axis=1)
+
+def gap_fill_yield(df_gaps, df_yields):
+
+    # fao cost averages by regions
+    df_int_reg_avg = df_yields[['Intermediate Region Name', 'Yield']].groupby(['Intermediate Region Name']).mean().reset_index()
+    df_sub_reg_avg = df_yields[['Sub-region Name', 'Yield']].groupby(['Sub-region Name']).mean().reset_index()
+    df_reg_avg = df_yields[['Region Name', 'Yield']].groupby(['Region Name']).mean().reset_index()
+    df_glo_avg = df_yields[['Yield']].mean()
+
+    # filling nans with regional averages
+    df_gaps = df_gaps.merge(df_int_reg_avg.rename(columns={'Yield': 'Int_Yield'}), how='left').merge(
+        df_sub_reg_avg.rename(columns={'Yield': 'Sub_Yield'}), how='left').merge(
+        df_reg_avg.rename(columns={'Yield': 'Reg_Yield'}), how='left')
+    
+    df_gaps['Glo_Yield'] = df_glo_avg.values[0]
+    
+    row_cond1 = (df_gaps['Yield']==0) & (df_gaps['Int_Yield']>0)
+    df_gaps.loc[row_cond1, 'Yield'] = df_gaps[row_cond1]['Int_Yield']
+    row_cond2 = (df_gaps['Yield']==0) & (df_gaps['Sub_Yield']>0)
+    df_gaps.loc[row_cond2, 'Yield'] = df_gaps[row_cond2]['Sub_Yield']
+    row_cond3 = (df_gaps['Yield']==0) & (df_gaps['Reg_Yield']>0)
+    df_gaps.loc[row_cond3, 'Yield'] = df_gaps[row_cond3]['Reg_Yield']
+    df_gaps.loc[df_gaps['Yield']==0, 'Yield'] = df_gaps[df_gaps['Yield']==0]['Glo_Yield']
+
+    return df_gaps.drop(['Int_Yield', 'Sub_Yield', 'Reg_Yield', 'Glo_Yield'], axis=1)
+
+# returns gap filled producer prices in USD/tonne
+def reg_predict(df):
+    # if either of production or area is 0, make sure the other is 0 also
+    df.loc[df['Production']==0, 'Area'] = 0
+    df.loc[df['Area']==0, 'Production'] = 0
+    
+    # first converting to usd/ha as the regression does better on usd/ha instead of usd/tonne
+    df['Yield'] = df['Production'] / df['Area']
+    df['Yield'] = df['Yield'].fillna(0)
+    df['Producer_price'] = df['Producer_price'] * df['Yield']
+    
+    # subsetting to countries which have production 
+    df_sub = df.copy()
+    df_sub = df_sub[(df_sub['Production']>0) & ((df_sub['Area']>0))].reset_index(drop=True)
+    
     df_sub['log_GDP'] = np.log(df_sub['GDP'])
     df_sub['log_prod'] = np.log(df_sub['Production'])
     df_sub['log_price'] = np.log(df_sub['Producer_price'])
@@ -252,91 +282,114 @@ def reg_predict(df):
     df_sub['region_var'] = df_sub['Region Name']
     
     n = 25
+    # if there is producer price information for at least n countries, 
+    # use it to predict for the remaining countries that produce this item 
+    # this can leave some gaps if there are no countries with producer price info in a specific region
     df_sub = reg(df_sub, n, type='log')
     df = df.merge(df_sub[['Abbreviation', 'M49 Code', 'y_pred']], how='left')
-    df.loc[(df['Producer_price']==0) & (df['y_pred'].notnull()), 'Producer_price'] = df[(df['Producer_price']==0) & (df['y_pred'].notnull())]['y_pred']
+    df['y_pred'] = df['y_pred'].fillna(0)
+    
+    # gap fill based on regional averages 
+    # if less than 25 countries have price info, or if there is no price info for certain regions
+    # we also want some price info for non-producing countries - obtaining that using gap filling as well
+    df = gap_fill_price(df, df[df['Producer_price']>0])
+    df.loc[df['Producer_price']==0, 'Producer_price'] = df[df['Producer_price']==0]['y_pred']
     df = df.drop('y_pred', axis=1)
+    
+    # convert back to usd/tonne
+    # first gap fill yield for non-producing countries
+    df = gap_fill_yield(df, df[df['Yield']>0])
+    df['Producer_price'] = df['Producer_price'] / df['Yield']
 
-    df['total_price'] = df['Producer_price'] * df['Area']
-    df = df.groupby(['Abbreviation', 'Item'])[['Area', 'Production', 'total_price']].sum().reset_index()
-    df['Producer_price'] = df['total_price'] / df['Area']
+    # aggregate by region abbreviation
+    df['Area_dup'] = df['Area']
+    df['Production_dup'] = df['Production']
+    df.loc[df['Area_dup']==0, 'Area_dup'] = 0.01 # to avoid getting nulls when aggregating by abbreviation
+    df.loc[df['Production_dup']==0, 'Production_dup'] = 0.01 # to avoid getting nulls when aggregating by abbreviation
+    df['total_yield'] = df['Yield'] * df['Area_dup']
+    df['total_price'] = df['Producer_price'] * df['Production_dup']
+    df= df.groupby(['Abbreviation', 'Item'])[['Area', 'Production', 
+                                              'total_yield', 'total_price', 
+                                              'Area_dup', 'Production_dup']].sum().reset_index()
+    df['Yield'] = df['total_yield'] / df['Area_dup']
+    df['Producer_price'] = df['total_price'] / df['Production_dup']
     return df
 
 if __name__ == '__main__':
 
     items_dict = {              
                   # wheat
-                  # 'jwhea': ['Wheat'],
+                  'jwhea': ['Wheat'],
                   
                   # rice
-                  # 'jrice': ['Rice'],
+                  'jrice': ['Rice'],
                   
                   # maize
-                  # 'jmaiz': ['Maize (corn)'],
+                  'jmaiz': ['Maize (corn)'],
                   
                   # othr_grains
-                  # 'jbarl': ['Barley'],
-                  # 'jmill': ['Millet'], 
-                  # 'jsorg': ['Sorghum'], 
-                  # 'jocer': ['Rye', 'Oats', 'Buckwheat', 'Quinoa', 'Canary seed', 'Fonio', 'Mixed grain', 'Triticale', 'Cereals n.e.c.'], 
+                  'jbarl': ['Barley'],
+                  'jmill': ['Millet'], 
+                  'jsorg': ['Sorghum'], 
+                  'jocer': ['Rye', 'Oats', 'Buckwheat', 'Quinoa', 'Canary seed', 'Fonio', 'Mixed grain', 'Triticale', 'Cereals n.e.c.'], 
                   
                   # roots
-                  # 'jcass': ['Cassava, fresh'], 
-                  # 'jpota': ['Potatoes'], 
-                  # 'jswpt': ['Sweet potatoes'],
-                  # 'jyams': ['Yams'],
-                  # 'jorat': ['Taro', 'Edible roots and tubers with high starch or inulin content, n.e.c., fresh'],
+                  'jcass': ['Cassava, fresh'], 
+                  'jpota': ['Potatoes'], 
+                  'jswpt': ['Sweet potatoes'],
+                  'jyams': ['Yams'],
+                  'jorat': ['Taro', 'Edible roots and tubers with high starch or inulin content, n.e.c., fresh'],
                   
                   # vegetables
-                  # 'jvege': ['Artichokes', 'Asparagus', 'Broad beans and horse beans, green', 'Cabbages', 'Carrots and turnips', 'Cauliflowers and broccoli',
-                  #           'Chillies and peppers, green (Capsicum spp. and Pimenta spp.)', 'Cucumbers and gherkins', 'Eggplants (aubergines)', 'Green corn (maize)',
-                  #           'Green garlic', 'Leeks and other alliaceous vegetables', 'Lettuce and chicory', 'Okra',
-                  #           'Onions and shallots, dry (excluding dehydrated)', 'Onions and shallots, green', 'Other beans, green', 'Other vegetables, fresh n.e.c.',
-                  #           'Peas, green', 'Pumpkins, squash and gourds', 'Spinach', 'String beans', 'Tomatoes'], # 'Mushrooms and truffles'
+                  'jvege': ['Artichokes', 'Asparagus', 'Broad beans and horse beans, green', 'Cabbages', 'Carrots and turnips', 'Cauliflowers and broccoli',
+                            'Chillies and peppers, green (Capsicum spp. and Pimenta spp.)', 'Cucumbers and gherkins', 'Eggplants (aubergines)', 'Green corn (maize)',
+                            'Green garlic', 'Leeks and other alliaceous vegetables', 'Lettuce and chicory', 'Okra',
+                            'Onions and shallots, dry (excluding dehydrated)', 'Onions and shallots, green', 'Other beans, green', 'Other vegetables, fresh n.e.c.',
+                            'Peas, green', 'Pumpkins, squash and gourds', 'Spinach', 'String beans', 'Tomatoes'], # 'Mushrooms and truffles'
                   
                   # fruits
-                  # 'jbana': ['Bananas'], 
-                  # 'jplnt': ['Plantains and cooking bananas'], 
-                  # 'jsubf': ['Apricots', 'Avocados', 'Cantaloupes and other melons', 'Dates', 'Figs', 
-                  #           'Kiwi fruit', 'Lemons and limes', 'Locust beans (carobs)', 'Mangoes, guavas and mangosteens', 
-                  #           'Oranges', 'Other citrus fruit, n.e.c.', 'Other fruits, n.e.c.', 'Other tropical fruits, n.e.c.', 'Papayas', 
-                  #           'Pineapples', 'Pomelos and grapefruits', 'Tangerines, mandarins, clementines', 
-                  #           'Watermelons', 'Coconuts, in shell'], # 'Cashewapple'
-                  # 'jtemf': ['Apples', 'Grapes', 'Blueberries', 'Cherries', 'Cranberries', 'Currants', 'Gooseberries', 
-                  #           'Other berries and fruits of the genus vaccinium n.e.c.', 'Other pome fruits', 'Other stone fruits', 
-                  #           'Peaches and nectarines', 'Pears', 'Persimmons', 'Plums and sloes', 'Quinces', 'Raspberries', 
-                  #           'Sour cherries', 'Strawberries', 'Olives'], 
+                  'jbana': ['Bananas'], 
+                  'jplnt': ['Plantains and cooking bananas'], 
+                  'jsubf': ['Apricots', 'Avocados', 'Cantaloupes and other melons', 'Dates', 'Figs', 
+                            'Kiwi fruit', 'Lemons and limes', 'Locust beans (carobs)', 'Mangoes, guavas and mangosteens', 
+                            'Oranges', 'Other citrus fruit, n.e.c.', 'Other fruits, n.e.c.', 'Other tropical fruits, n.e.c.', 'Papayas', 
+                            'Pineapples', 'Pomelos and grapefruits', 'Tangerines, mandarins, clementines', 
+                            'Watermelons', 'Coconuts, in shell'], # 'Cashewapple'
+                  'jtemf': ['Apples', 'Grapes', 'Blueberries', 'Cherries', 'Cranberries', 'Currants', 'Gooseberries', 
+                            'Other berries and fruits of the genus vaccinium n.e.c.', 'Other pome fruits', 'Other stone fruits', 
+                            'Peaches and nectarines', 'Pears', 'Persimmons', 'Plums and sloes', 'Quinces', 'Raspberries', 
+                            'Sour cherries', 'Strawberries', 'Olives'], 
                   
                   # legumes
-                  # 'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
-                  # 'jchkp': ['Chick peas, dry'],
-                  # 'jcowp': ['Cow peas, dry'],
-                  # 'jlent': ['Lentils, dry'], 
-                  # 'jpigp': ['Pigeon peas, dry'], 
-                  # 'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
+                  'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
+                  'jchkp': ['Chick peas, dry'],
+                  'jcowp': ['Cow peas, dry'],
+                  'jlent': ['Lentils, dry'], 
+                  'jpigp': ['Pigeon peas, dry'], 
+                  'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
                   
                   # soybeans
-                  # 'jsoyb': ['Soya beans'],
+                  'jsoyb': ['Soya beans'],
                   
                   # nuts_seeds
-                  # 'jgrnd': ['Groundnuts, excluding shelled'], 
-                  # 'jothr': ['Almonds, in shell', 'Cashew nuts, in shell', 'Chestnuts, in shell', 'Hazelnuts, in shell', 
-                  #           'Other nuts (excluding wild edible nuts and groundnuts), in shell, n.e.c.', 'Pistachios, in shell', 'Walnuts, in shell', 
-                  #           'Linseed', 'Sunflower seed', 'Safflower seed', 'Poppy seed', 'Sesame seed'], # 'Brazil nuts, in shell', 'Hempseed'
+                  'jgrnd': ['Groundnuts, excluding shelled'], 
+                  'jothr': ['Almonds, in shell', 'Cashew nuts, in shell', 'Chestnuts, in shell', 'Hazelnuts, in shell', 
+                            'Other nuts (excluding wild edible nuts and groundnuts), in shell, n.e.c.', 'Pistachios, in shell', 'Walnuts, in shell', 
+                            'Linseed', 'Sunflower seed', 'Safflower seed', 'Poppy seed', 'Sesame seed'], # 'Brazil nuts, in shell', 'Hempseed'
                   
                   
                   # oil_veg
-                  # 'jrpsd': ['Rape or colza seed'], 
+                  'jrpsd': ['Rape or colza seed'], 
                   'jsnfl': ['Sunflower seed'], 
                   'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Safflower seed', 'Sesame seed',
                             'Castor oil seeds', 'Coconuts, in shell', 'Mustard seed', 'Olives'], # 'Cotton seed', 'Hempseed'
                   
                   # oil_palm
-                  # 'jpalm': ['Oil palm fruit'], 
+                  'jpalm': ['Oil palm fruit'], 
                   
                   # sugar
-                  # 'jsugb': ['Sugar beet'], 
-                  # 'jsugc': ['Sugar cane']          
+                  'jsugb': ['Sugar beet'], 
+                  'jsugc': ['Sugar cane']          
                   
     }
 
@@ -362,11 +415,11 @@ if __name__ == '__main__':
             df_category_list.append(df)
 
         df_category = pd.concat(df_category_list)
-        df_category = df_category.groupby(['Abbreviation'])[['Area', 'Production', 'total_price']].sum().reset_index()
-        df_category['Producer_price'] = df_category['total_price'] / df_category['Area']
-        df_category = df_category.drop('total_price', axis=1)
+        df_category = df_category.groupby(['Abbreviation'])[['Area', 'Production', 
+                                                             'total_yield', 'total_price',
+                                                             'Area_dup', 'Production_dup']].sum().reset_index()
+        df_category['Yield'] = df_category['total_yield'] / df_category['Area_dup']
+        df_category['Producer_price'] = df_category['total_price'] / df_category['Production_dup']
+        df_category = df_category.drop(['total_yield', 'total_price', 'Area_dup', 'Production_dup'], axis=1)
         df_category.to_csv(f'../../OPSIS/Data/FAOSTAT/FAO_prod_prices/prod_prices_{category}.csv', index=False)
-
-
-
     

@@ -406,7 +406,7 @@ if __name__ == '__main__':
                   'Peas, dry': ['Peas, dry'], 
                   'Pigeon peas, dry': ['Pigeon peas, dry'], 
                   'Vetches': [], 
-                  'Soya beans': ['Cake of soya beans', 'Soya beans', 'Soya paste', 'Soya sauce', 'Soya bean oil'], 
+                  'Soya beans': ['Cake of soya beans', 'Soya beans', 'Soya curd', 'Soya paste', 'Soya sauce', 'Soya bean oil'], 
                   'Almonds, in shell': ['Almonds, in shell', 'Almonds, shelled'], 
                   'Brazil nuts, in shell': ['Brazil nuts, in shell', 'Brazil nuts, shelled'], 
                   'Cashew nuts, in shell': ['Cashew nuts, in shell', 'Cashew nuts, shelled'], 
@@ -509,7 +509,7 @@ if __name__ == '__main__':
                   # 'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
                   
                   # soybeans
-                  # 'jsoyb': ['Soya beans'],
+                  'jsoyb': ['Soya beans'],
                   
                   # nuts_seeds
                   # 'jgrnd': ['Groundnuts, excluding shelled'], 
@@ -520,9 +520,9 @@ if __name__ == '__main__':
                   
                   # oil_veg
                   # 'jrpsd': ['Rape or colza seed'], 
-                  'jsnfl': ['Sunflower seed'], 
-                  'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Safflower seed', 'Sesame seed',
-                            'Castor oil seeds', 'Cotton seed', 'Coconuts, in shell', 'Mustard seed', 'Olives'], 
+                  # 'jsnfl': ['Sunflower seed'], 
+                  # 'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Safflower seed', 'Sesame seed',
+                  #           'Castor oil seeds', 'Cotton seed', 'Coconuts, in shell', 'Mustard seed', 'Olives'], 
                   
                   # oil_palm
                   # 'jpalm': ['Oil palm fruit'], 
@@ -549,8 +549,8 @@ if __name__ == '__main__':
     trade_factors = pd.read_csv('../../OPSIS/Data/FAOSTAT/trade_factors.csv') # for things like cassava starch etc
     processing_factors = pd.read_csv('../../OPSIS/Data/FAOSTAT/processing_factors.csv') # for oil and sugar crops
     
-    # years = [2017, 2018, 2019, 2020, 2021] # 2022 has some information missing (e.g. production for coconut oil), so considering 2017-2021
-    years = [2012, 2013, 2014, 2015, 2016]
+    years = [2017, 2018, 2019, 2020, 2021] # 2022 has some information missing (e.g. production for coconut oil), so considering 2017-2021
+    # years = [2012, 2013, 2014, 2015, 2016]
     
     FAO_area_codes = get_area_codes()
     
