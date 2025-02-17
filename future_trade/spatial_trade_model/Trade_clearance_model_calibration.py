@@ -1,3 +1,8 @@
+"""
+Author: Jasper Verschuur
+Edited by: Shruti Jain
+"""
+
 # Usage: python -m future_trade.spatial_trade_model.Trade_clearance_model_calibration
 
 import pandas as pd

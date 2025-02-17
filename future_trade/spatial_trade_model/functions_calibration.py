@@ -1,5 +1,7 @@
-#!/usr/bin/env python
-# coding: utf-8
+"""
+Author: Jasper Verschuur
+Edited by: Shruti Jain
+"""
 
 import pandas as pd
 import numpy as np
