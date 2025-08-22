@@ -136,13 +136,13 @@ def get_tariffs_data(transport, FAO_area_codes, mm, codes):
 def get_demand_elas():
     demand_elas = pd.read_csv('../../OPSIS/Data/Future_production_demand_data/IMPACT-master/DriverAssumptions/Elasticities_Demand/ExogFDDmdElasH.csv', 
                               header=None)
-    demand_elas.columns = ['IMPACT_code','Abbreviation','Year','demand_elas']
+    demand_elas.columns = ['IMPACT_code','Abbreviation','year','demand_elas']
     demand_elas['IMPACT_code'] = 'j'+demand_elas['IMPACT_code'].str[1:5]
     
-    demand_elas = demand_elas[demand_elas['Year']>=2020].reset_index(drop = True)
-    demand_elas = demand_elas[demand_elas['Year'].isin([2020,2025,2030,2035,2040,2045,2050])]
+    demand_elas = demand_elas[demand_elas['year']>=2020].reset_index(drop = True)
+    demand_elas = demand_elas[demand_elas['year'].isin([2020,2025,2030,2035,2040,2045,2050])]
     ## add baseline ##
-    demand_elas = demand_elas.merge(demand_elas[demand_elas['Year']==2020][['Abbreviation','IMPACT_code','demand_elas']].copy().rename(
+    demand_elas = demand_elas.merge(demand_elas[demand_elas['year']==2020][['Abbreviation','IMPACT_code','demand_elas']].copy().rename(
         columns = {'demand_elas':'demand_elas_baseline'}), on = ['Abbreviation','IMPACT_code'])
     demand_elas = demand_elas[demand_elas['IMPACT_code'].isin(['jwhea', 'jrice', 'jmaiz', 'jbarl',
                                                                'jmill', 'jsorg', 'jocer', 'jcass',
@@ -270,11 +270,6 @@ if __name__ == '__main__':
     demand_elas = get_demand_elas()
     supply_elas = get_supply_elas()
     
-    # exporting future demand elasticities
-    demand_elas.to_csv('../../OPSIS/Data/Trade_clearance_model/Input/Future_scenarios/SSP2/IMPACT_future_demand_elas.csv', index=False)
-    # exporting supply elasticities
-    supply_elas.to_csv('../../OPSIS/Data/Trade_clearance_model/Input/Future_scenarios/SSP2/IMPACT_supply_elas.csv', index=False)
-    
     for category in items_dict.keys():
         print(category)
         
@@ -283,7 +278,7 @@ if __name__ == '__main__':
         tariffs = get_tariffs_data(transport, FAO_area_codes, mm_2019, items_dict[category])
 
         df_country = prod_prices.merge(imp_exp)
-        df_country = df_country.merge(demand_elas[demand_elas['Year']==2020].drop(['Year', 'demand_elas_baseline'], axis=1))
+        df_country = df_country.merge(demand_elas[demand_elas['year']==2020].drop(['year', 'demand_elas_baseline'], axis=1))
         df_country = df_country.merge(supply_elas)
         df_country['Consumption'] = df_country['Production'] + df_country['imports'] - df_country['exports'] 
         df_country = df_country.rename(columns={'Abbreviation': 'abbreviation',

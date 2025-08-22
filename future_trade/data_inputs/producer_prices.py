@@ -235,7 +235,7 @@ def gap_fill_price(df_gaps, df_prices):
 
 def gap_fill_yield(df_gaps, df_yields):
 
-    # fao cost averages by regions
+    # fao yield averages by regions
     df_int_reg_avg = df_yields[['Intermediate Region Name', 'Yield']].groupby(['Intermediate Region Name']).mean().reset_index()
     df_sub_reg_avg = df_yields[['Sub-region Name', 'Yield']].groupby(['Sub-region Name']).mean().reset_index()
     df_reg_avg = df_yields[['Region Name', 'Yield']].groupby(['Region Name']).mean().reset_index()
@@ -287,6 +287,7 @@ def reg_predict(df):
     # this can leave some gaps if there are no countries with producer price info in a specific region
     df_sub = reg(df_sub, n, type='log')
     df = df.merge(df_sub[['Abbreviation', 'M49 Code', 'y_pred']], how='left')
+    df.loc[df['y_pred']> 3 * df['Producer_price'].max(), 'y_pred'] = 0 # in very very few cases, price explodes if yields in prediction countries are much higher than yields in countries used to fit the regression. replacing those with regional means
     df['y_pred'] = df['y_pred'].fillna(0)
     
     # gap fill based on regional averages 
