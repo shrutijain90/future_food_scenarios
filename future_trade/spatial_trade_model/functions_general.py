@@ -149,11 +149,14 @@ def compare_trade_flows(model_predict, model_base, error):
     return trade_validation, hit_ratio, MSE, r2
 
 
-def scatter_plot_trade(df_output, fname):
+def scatter_plot_trade(df_output, fname, to_print=False):
     ### plot of trade flows ##
     fig, ax = plt.subplots(figsize = (3.5,3.5))
     plt.scatter(np.log(df_output['t_pred']+1), np.log(df_output['t_exist']+1), s = 8, color = 'grey', alpha = 0.4, zorder = 3)
     plt.plot(np.linspace(0,13, 100), np.linspace(0,13, 100), color = 'k', lw = 0.5, zorder = 1)
     plt.xlim(0, 12); plt.xlabel('Predicted trade ln (x1,000 t)')
     plt.ylim(0, 12); plt.ylabel('Observed trade ln (x1,000 t)')
-    plt.savefig(f'{fname}.png', bbox_inches='tight')
+    if fname is not None:
+        plt.savefig(f'{fname}.png', bbox_inches='tight')
+    if to_print:
+        plt.show()

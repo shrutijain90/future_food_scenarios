@@ -33,10 +33,40 @@ logging.basicConfig(filename=f"{calibration_output}calibration_info.txt", level=
 
 if __name__ == '__main__':
     #### read data ###
-    for crop_code in ['jwhea', 'jrice', 'jmaiz', 'jbarl', 'jmill', 'jsorg', 'jocer', 'jcass', 
-                      'jpota', 'jyams', 'jswpt', 'jorat', 'jvege', 'jbana', 'jplnt', 'jsubf', 
-                      'jtemf', 'jbean', 'jchkp', 'jcowp', 'jlent', 'jpigp', 'jopul', 'jsoyb',
-                      'jgrnd', 'jothr', 'jrpsd', 'jsnfl', 'jtols', 'jpalm', 'jsugb', 'jsugc']:
+    for crop_code in [
+        # 'jwhea', 
+        'jrice', 
+        # 'jmaiz', 
+        # 'jbarl', 
+        # 'jmill', 
+        # 'jsorg', 
+        # 'jocer', 
+        # 'jcass', 
+        # 'jpota', 
+        # 'jyams', 
+        # 'jswpt', 
+        # 'jorat', 
+        # 'jvege', 
+        # 'jbana', 
+        # 'jplnt', 
+        # 'jsubf', 
+        # 'jtemf', 
+        # 'jbean', 
+        # 'jchkp', 
+        # 'jcowp', 
+        # 'jlent', 
+        # 'jpigp', 
+        # 'jopul', 
+        # 'jsoyb',
+        # 'jgrnd', 
+        # 'jothr', 
+        # 'jrpsd', 
+        # 'jsnfl', 
+        # 'jtols', 
+        # 'jpalm', 
+        # 'jsugb', 
+        # 'jsugc'
+        ]:
         print(crop_code)
         logging.info(crop_code)
         file_country = f'{data_dir}/Input/Country_data/country_information_{crop_code}.csv'
@@ -74,6 +104,51 @@ if __name__ == '__main__':
     
         #### run step 2 calibration ####
         logging.info('Model step 2')
+
+        # if crop_code in ['jmill', 'jyams', 'jswpt', 'jorat', 'jcowp', 'jpigp']:
+        #     wtc = 1
+        #     wp = 1
+        # else:
+        #     wtc = 1
+        #     wp = 1
+
+        # if crop_code=='jyams':
+        #     wx = 600
+        # elif crop_code=='jgrnd':
+        #     wx = 25
+        # else:
+        #     wx = 500
+
+        # count_max = 50
+        # if crop_code=='jgrnd':
+        #     count_max = 8
+        # else:
+        #     count_max = 30
+        
+        # # maize
+        # wtc = 1
+        # wp = 1
+        # wx = 500
+        # count_max = 50
+        # maz_iter = 3000
+        # scale_factor = 1
+
+        # rice
+        wtc = 1
+        wp = 1
+        wx = 300
+        count_max = 50
+        max_iter = 3000
+        scale_factor = 0.5
+
+        # wheat
+        wtc = 1
+        wp = 1
+        wx = 300
+        count_max = 50
+        max_iter = 3000
+        scale_factor = 0.5
+        
         model_calibration = trade_clearance_calibration(country_info=country_class,
                                                         bilateral_info=bilateral_class,
                                                         sigma_val=sigma_val,
@@ -82,12 +157,13 @@ if __name__ == '__main__':
                                                         trade_calibration_step1=trade_calibration_1,
                                                         crop_code=crop_code,
                                                         output_file=calibration_output,
-                                                        count_max=30,  ### default = 25
+                                                        count_max=count_max,  ### default = 25
                                                         mu_val=0.01,  ### default = 0.01
-                                                        wtc=10,  ### default = 10
-                                                        wp=5,    ### default = 5
-                                                        wx=200,  ### default = 200
-                                                        max_iter=500)  ### default = 500
+                                                        wtc=wtc,  ### default = 10
+                                                        wp=wp,    ### default = 5
+                                                        wx=wx,  ### default = 200
+                                                        max_iter=max_iter,
+                                                        scale_factor=scale_factor)  ### default = 500
     
     
         ### model validation after step 3 ###
@@ -97,7 +173,7 @@ if __name__ == '__main__':
 
         logging.info(f'hit ratio: {np.round(hit_ratio_s2, 2)}')
         logging.info(f'MSE: {np.round(MSE_s2, 2)}')
-        logging.info(f'R-squared: {np.round(R2_s2, 2)}')
+        logging.info(f'R-squared: {np.round(R2_s2, 2)}\n')
         
         ### plot of trade flows ##
         scatter_plot_trade(df_output=model_validation_s2, 

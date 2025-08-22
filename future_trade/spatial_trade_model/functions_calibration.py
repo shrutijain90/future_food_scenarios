@@ -138,11 +138,11 @@ def output_calibration_file(calibration_model, output_file, crop_code, error):
     pd.Series(calibration_model.calib.extract_values()).to_csv(output_file+'calib_calibration_'+crop_code+'.csv', header=False)
 
 
-def trade_clearance_calibration(country_info, bilateral_info, sigma_val, eps_val, error, trade_calibration_step1, crop_code, output_file,  count_max = 30, mu_val = 0.01, wtc = 1, wp = 5, wx = 200, max_iter = 500):
+def trade_clearance_calibration(country_info, bilateral_info, sigma_val, eps_val, error, trade_calibration_step1, crop_code, output_file,  count_max = 30, mu_val = 0.01, wtc = 1, wp = 5, wx = 200, max_iter = 500, scale_factor=0.01):
     ### scaling factors
-    factor_trade = (1200/(bilateral_info.trade01.sum()/1e3))**2
-    factor_tc = (5.4/(bilateral_info.tc1.sum()/1e6))**2
-    factor_price = (100/(country_info.production_cost.sum()/1e3))**2
+    factor_trade = 1 #(1200/(bilateral_info.trade01.sum()/1e3))**2
+    factor_tc = 1 #(5.4/(bilateral_info.tc1.sum()/1e6))**2
+    factor_price = 1 #(100/(country_info.production_cost.sum()/1e3))**2
 
     #### basic settings
     count=0; count_max
@@ -230,7 +230,7 @@ def trade_clearance_calibration(country_info, bilateral_info, sigma_val, eps_val
 
     print(model1.z_startingpoint.extract_values()[None], model1.pen_startingpoint.extract_values()[None])
 
-    scaling_weight = 0.01 *  model1.pen_startingpoint.extract_values()[None]/model1.z_startingpoint.extract_values()[None]
+    scaling_weight = scale_factor *  model1.pen_startingpoint.extract_values()[None]/model1.z_startingpoint.extract_values()[None]
 
     model1.wtc = (scaling_weight) * (wtc*factor_tc)/len(country_info.abbreviation)
     model1.wp = (scaling_weight) * (wp*factor_price)/(len(country_info.abbreviation))
@@ -270,12 +270,12 @@ def trade_clearance_calibration(country_info, bilateral_info, sigma_val, eps_val
     model1.zz= Var(initialize=model1.zz0.extract_values()[None], within = NonNegativeReals, doc='zz')
 
     def tc2_bounds_eq2(model1, i,j):
-        return (0.7 * model1.tc1[i,j], 3.0 * model1.tc1[i,j])
+        return (0.3 * model1.tc1[i,j], 4.0 * model1.tc1[i,j])
 
     model1.tc2= Var(model1.i, model1.i, initialize=model1.tc1.extract_values(), bounds = tc2_bounds_eq2,  doc='tc2')
 
     def prodprice_bounds_eq2(model1, i):
-        return (0.7 * model1.prodprice1[i], 2 * model1.prodprice1[i])
+        return (0.2 * model1.prodprice1[i], 5.0 * model1.prodprice1[i])
 
     model1.prodprice2= Var(model1.i, initialize=model1.prodprice1.extract_values(), bounds = prodprice_bounds_eq2, doc='prodprice2')
     model1.conprice2= Var(model1.i, initialize=model1.conprice02.extract_values(), within = NonNegativeReals, doc='conprice2')
