@@ -11,8 +11,6 @@ import datetime
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 
-data_dir = '../../OPSIS/Data/Trade_clearance_model'
-
 def compare_output(var_old, var_new, bil = True):
     if bil == True:
         base = pd.DataFrame(pd.Series(var_old.extract_values())).reset_index().rename(columns={'level_0':'from_abbreviation','level_1':'to_abbreviation',0:'base'})
@@ -105,9 +103,7 @@ class BilateralClass:
         ## ad-valorem tariff
         self.adv = dataframe.set_index(['from_abbreviation','to_abbreviation'])['adv']
 
-def read_model_input(crop_code, error_factor):
-    file_country = f'{data_dir}/Input/Country_data/country_information_{crop_code}.csv'
-    file_bil = f'{data_dir}/Input/Trade_cost/bilateral_trade_cost_{crop_code}.csv'
+def read_model_input(crop_code, error_factor, file_country, file_bil):
 
     #### read data ###
     country_data = pd.read_csv(file_country)

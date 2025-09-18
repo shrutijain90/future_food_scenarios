@@ -11,8 +11,6 @@ import math
 import datetime
 from future_trade.spatial_trade_model.functions_general import *
 
-data_dir = '../../OPSIS/Data/Trade_clearance_model'
-
 ###-------------------------############# STEP 1 CALIBRATION ######## --------------------------------------####
 
 ### OBJECTIVE ####
@@ -270,7 +268,7 @@ def trade_clearance_calibration(country_info, bilateral_info, sigma_val, eps_val
     model1.zz= Var(initialize=model1.zz0.extract_values()[None], within = NonNegativeReals, doc='zz')
 
     def tc2_bounds_eq2(model1, i,j):
-        return (0.3 * model1.tc1[i,j], 4.0 * model1.tc1[i,j])
+        return (0.2 * model1.tc1[i,j], 5.0 * model1.tc1[i,j])
 
     model1.tc2= Var(model1.i, model1.i, initialize=model1.tc1.extract_values(), bounds = tc2_bounds_eq2,  doc='tc2')
 

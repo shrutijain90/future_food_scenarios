@@ -34,47 +34,20 @@ logging.basicConfig(filename=f"{calibration_output}calibration_info.txt", level=
 if __name__ == '__main__':
     #### read data ###
     for crop_code in [
-        # 'jwhea', 
-        'jrice', 
-        # 'jmaiz', 
-        # 'jbarl', 
-        # 'jmill', 
-        # 'jsorg', 
-        # 'jocer', 
-        # 'jcass', 
-        # 'jpota', 
-        # 'jyams', 
-        # 'jswpt', 
-        # 'jorat', 
-        # 'jvege', 
-        # 'jbana', 
-        # 'jplnt', 
-        # 'jsubf', 
-        # 'jtemf', 
-        # 'jbean', 
-        # 'jchkp', 
-        # 'jcowp', 
-        # 'jlent', 
-        # 'jpigp', 
-        # 'jopul', 
-        # 'jsoyb',
-        # 'jgrnd', 
-        # 'jothr', 
-        # 'jrpsd', 
-        # 'jsnfl', 
-        # 'jtols', 
-        # 'jpalm', 
-        # 'jsugb', 
-        # 'jsugc'
-        ]:
+        'jwhea', 'jrice', 'jmaiz', 'jbarl', 'jmill', 'jsorg', 
+        'jocer', 'jcass', 'jpota', 'jyams', 'jswpt', 'jorat', 
+        'jvege', 'jbana', 'jplnt', 'jsubf', 'jtemf', 'jbean', 
+        'jchkp', 'jcowp', 'jlent', 'jpigp', 'jopul', 'jsoyb',
+        'jgrnd', 'jothr', 'jrpsd', 'jsnfl', 'jtols', 'jpalm', 
+        'jsugb', 'jsugc']:
+
         print(crop_code)
         logging.info(crop_code)
-        file_country = f'{data_dir}/Input/Country_data/country_information_{crop_code}.csv'
-        file_bil = f'{data_dir}/Input/Trade_cost/bilateral_trade_cost_{crop_code}.csv'
+        file_country = f'{data_dir}/Grouped_Input/Country_data/country_information_{crop_code}.csv'
+        file_bil = f'{data_dir}/Grouped_Input/Trade_cost/bilateral_trade_cost_{crop_code}.csv'
     
         ### read and process model input ###
-        country_class, bilateral_class = read_model_input(crop_code, factor_error)
-    
+        country_class, bilateral_class = read_model_input(crop_code, factor_error, file_country, file_bil) 
     
         ### solve the first model step ###
         logging.info('Model step 1')
@@ -104,50 +77,21 @@ if __name__ == '__main__':
     
         #### run step 2 calibration ####
         logging.info('Model step 2')
-
-        # if crop_code in ['jmill', 'jyams', 'jswpt', 'jorat', 'jcowp', 'jpigp']:
-        #     wtc = 1
-        #     wp = 1
-        # else:
-        #     wtc = 1
-        #     wp = 1
-
-        # if crop_code=='jyams':
-        #     wx = 600
-        # elif crop_code=='jgrnd':
-        #     wx = 25
-        # else:
-        #     wx = 500
-
-        # count_max = 50
-        # if crop_code=='jgrnd':
-        #     count_max = 8
-        # else:
-        #     count_max = 30
         
-        # # maize
-        # wtc = 1
-        # wp = 1
-        # wx = 500
-        # count_max = 50
-        # maz_iter = 3000
-        # scale_factor = 1
-
-        # rice
-        wtc = 1
-        wp = 1
-        wx = 300
-        count_max = 50
-        max_iter = 3000
-        scale_factor = 0.5
-
-        # wheat
-        wtc = 1
-        wp = 1
-        wx = 300
-        count_max = 50
-        max_iter = 3000
-        scale_factor = 0.5
+        if crop_code in ['jsorg', 'jyams', 'jvege', 'jbean', 'jchkp', 'jpigp', 'jgrnd', 'jothr']:
+            wtc = 1
+            wp = 1
+            wx = 1000
+            count_max = 50
+            max_iter = 3000
+            scale_factor = 1000
+        else:
+            wtc = 1
+            wp = 1
+            wx = 1000
+            count_max = 50
+            max_iter = 3000
+            scale_factor = 100
         
         model_calibration = trade_clearance_calibration(country_info=country_class,
                                                         bilateral_info=bilateral_class,
@@ -178,3 +122,32 @@ if __name__ == '__main__':
         ### plot of trade flows ##
         scatter_plot_trade(df_output=model_validation_s2, 
                            fname=f'{calibration_output}{crop_code}_s2')
+        
+        # if both demand and supply for a region are 0, it gets omitted from output files. adding all regions so the future code runs as expected
+        df_country = pd.read_csv(file_country)
+        df_bil = pd.read_csv(file_bil)
+        
+        trade_cal = pd.read_csv(f'{calibration_output}trade_calibration_{crop_code}.csv', header=None)
+        trade_cal.columns = ['from_abbreviation', 'to_abbreviation', 'trade_cal']
+        trade_cal = trade_cal.merge(df_bil[['from_abbreviation', 'to_abbreviation']], how='right').fillna(0)
+        trade_cal.to_csv(f'{calibration_output}trade_calibration_{crop_code}.csv', index=False, header=False)
+
+        calib = pd.read_csv(f'{calibration_output}calib_calibration_{crop_code}.csv', header=None)
+        calib.columns = ['from_abbreviation', 'to_abbreviation', 'calib']
+        calib = calib.merge(df_bil[['from_abbreviation', 'to_abbreviation']], how='right').fillna(0)
+        calib.to_csv(f'{calibration_output}calib_calibration_{crop_code}.csv', index=False, header=False)
+
+        tc = pd.read_csv(f'{calibration_output}tc_calibration_{crop_code}.csv', header=None)
+        tc.columns = ['from_abbreviation', 'to_abbreviation', 'tc']
+        tc = tc.merge(df_bil[['from_abbreviation', 'to_abbreviation']], how='right').fillna(0)
+        tc.to_csv(f'{calibration_output}tc_calibration_{crop_code}.csv', index=False, header=False)
+
+        conprice = pd.read_csv(f'{calibration_output}conprice_calibration_{crop_code}.csv', header=None)
+        conprice.columns = ['abbreviation', 'conprice']
+        conprice = conprice.merge(df_country[['abbreviation']], how='right').fillna(0)
+        conprice.to_csv(f'{calibration_output}conprice_calibration_{crop_code}.csv', index=False, header=False)
+
+        prodprice = pd.read_csv(f'{calibration_output}prodprice_calibration_{crop_code}.csv', header=None)
+        prodprice.columns = ['abbreviation', 'prodprice']
+        prodprice = prodprice.merge(df_country[['abbreviation']], how='right').fillna(0)
+        prodprice.to_csv(f'{calibration_output}prodprice_calibration_{crop_code}.csv', index=False, header=False)
