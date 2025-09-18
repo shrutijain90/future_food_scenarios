@@ -4,18 +4,9 @@ import pandas as pd
 import numpy as np
 import statsmodels.api as sm
 
+from future_trade.data_inputs.balance_trade import get_area_codes
+
 data_dir_prefix = '../../data/'
-
-def get_area_codes():
-
-    FAO_area_codes = pd.read_csv('../../OPSIS/Data/Country_group/regions.csv')
-    FAO_area_codes = FAO_area_codes[['Abbreviation', 'M49 Code', 'iso3', 'Region Name', 'Sub-region Name', 'Intermediate Region Name']]
-    FAO_area_codes.loc[FAO_area_codes['Intermediate Region Name'].isna(), 'Intermediate Region Name'] = FAO_area_codes[FAO_area_codes['Intermediate Region Name'].isna()]['Sub-region Name']
-    # removing countries which don't have corresponding FBS/SUA or consumption data - leaves a total of 153 unique regions (Abbreviation is the unique identifier here)
-    FAO_area_codes = FAO_area_codes[~FAO_area_codes['Abbreviation'].isin(['ERI', 'GNQ', 'OSA', 'PSE', 'SSD'])] 
-    FAO_area_codes = FAO_area_codes.sort_values(by='Abbreviation').reset_index(drop=True)
-    
-    return FAO_area_codes
 
 def get_prod(prod, item, year, FAO_area_codes):
     
@@ -29,7 +20,7 @@ def get_prod(prod, item, year, FAO_area_codes):
     
     prod['M49 Code'] = prod.apply(lambda row: int(row['M49 Code'][1:]), axis=1)
     prod = prod.merge(FAO_area_codes, how='right')
-    prod = prod[['M49 Code', 'Abbreviation', 'Region Name', 'Sub-region Name', 'Intermediate Region Name', 'Item', 'Area', 'Production']]
+    prod = prod[['M49 Code', 'iso3', 'Region Name', 'Sub-region Name', 'Intermediate Region Name', 'Item', 'Area', 'Production']]
     prod = prod.fillna(0)
     prod['Item'] = item
 
@@ -80,14 +71,14 @@ def split_prod(sua, prod, item, year, FAO_area_codes, proc):
     sua['Area Code (M49)'] = sua.apply(lambda row: int(row['Area Code (M49)'][1:]), axis=1)
     sua = sua.rename(columns={'Area Code (M49)': 'M49 Code'})
     sua = sua.merge(FAO_area_codes, how='right')
-    sua = sua[['M49 Code', 'Abbreviation', 'Domestic supply quantity', 'Processing']]
+    sua = sua[['M49 Code', 'iso3', 'Domestic supply quantity', 'Processing']]
     sua = sua.fillna(0)
     sua['proc_prop'] = sua['Processing'] / sua['Domestic supply quantity']
     sua.loc[sua['Domestic supply quantity']==0, 'proc_prop'] = 0
     sua.loc[sua['proc_prop']>1, 'proc_prop'] = 1
     if proc==0:
         sua['proc_prop'] = 1 - sua['proc_prop']
-    prod = prod.merge(sua[['Abbreviation', 'M49 Code', 'proc_prop']])
+    prod = prod.merge(sua[['iso3', 'M49 Code', 'proc_prop']])
     prod['Production'] = prod['Production'] * prod['proc_prop']
     prod['Area'] = prod['Area'] * prod['proc_prop']
 
@@ -117,7 +108,7 @@ def get_prod_prices(prod_prices, item):
     prod_prices.columns = ['M49 Code', 'Item', 'Producer Price (USD/tonne)', 'num_years']
     
     prod_prices = prod_prices.merge(FAO_area_codes, how='right')
-    prod_prices = prod_prices[['M49 Code', 'Abbreviation', 'Region Name', 'Sub-region Name', 'Intermediate Region Name', 'Item', 'Producer Price (USD/tonne)', 'num_years']]
+    prod_prices = prod_prices[['M49 Code', 'iso3', 'Region Name', 'Sub-region Name', 'Intermediate Region Name', 'Item', 'Producer Price (USD/tonne)', 'num_years']]
     prod_prices = prod_prices.fillna(0)
     prod_prices['Item'] = item
 
@@ -128,7 +119,7 @@ def get_gdp():
                         encoding='latin1')
     gdp = gdp[(gdp['Item']=='Gross Domestic Product') 
         & (gdp['Element']=='Value US$ per capita, 2015 prices')
-        & (gdp['Year'].isin([2017, 2018, 2019, 2020, 2021]))
+        & (gdp['Year'].isin([2018, 2019, 2020, 2021, 2022]))
         ][['Area Code (M49)', 'Year', 'Value']].reset_index(drop=True)
     
     gdp['Area Code (M49)'] = gdp.apply(lambda row: int(row['Area Code (M49)'][1:]), axis=1)
@@ -140,7 +131,7 @@ def get_gdp():
 def combine_data(prod, prod_prices, gdp, sua, item, FAO_area_codes, category):
 
     prod_list = []
-    for year in [2017, 2018, 2019, 2020, 2021]:
+    for year in [2018, 2019, 2020, 2021, 2022]:
         prod_year = get_prod(prod, item, year, FAO_area_codes)
     
         if item in ['Olives', 'Coconuts, in shell', 'Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Sunflower seed', 'Safflower seed', 'Sesame seed']:
@@ -151,12 +142,12 @@ def combine_data(prod, prod_prices, gdp, sua, item, FAO_area_codes, category):
         prod_list.append(prod_year)
 
     prod = pd.concat(prod_list, axis=0, ignore_index=True)
-    prod = prod[['Abbreviation', 'Region Name', 'Sub-region Name', 'Intermediate Region Name', 'M49 Code', 'Item', 'Area', 'Production']].groupby(
-        ['Abbreviation', 'Region Name', 'Sub-region Name', 'Intermediate Region Name', 'M49 Code', 'Item']).mean().reset_index()
+    prod = prod[['iso3', 'Region Name', 'Sub-region Name', 'Intermediate Region Name', 'M49 Code', 'Item', 'Area', 'Production']].groupby(
+        ['iso3', 'Region Name', 'Sub-region Name', 'Intermediate Region Name', 'M49 Code', 'Item']).mean().reset_index()
 
     prod_prices = get_prod_prices(prod_prices, item)
     df = prod.merge(gdp, how='left').merge(prod_prices, how='left').rename(columns={'Producer Price (USD/tonne)': 'Producer_price'})
-    df = df[df['GDP'].notnull()].reset_index(drop=True)
+    
     return df
 
 def reg(df, n, type='log'):
@@ -272,6 +263,7 @@ def reg_predict(df):
     # subsetting to countries which have production 
     df_sub = df.copy()
     df_sub = df_sub[(df_sub['Production']>0) & ((df_sub['Area']>0))].reset_index(drop=True)
+    df_sub = df_sub[df_sub['GDP'].notnull()].reset_index(drop=True)
     
     df_sub['log_GDP'] = np.log(df_sub['GDP'])
     df_sub['log_prod'] = np.log(df_sub['Production'])
@@ -286,7 +278,7 @@ def reg_predict(df):
     # use it to predict for the remaining countries that produce this item 
     # this can leave some gaps if there are no countries with producer price info in a specific region
     df_sub = reg(df_sub, n, type='log')
-    df = df.merge(df_sub[['Abbreviation', 'M49 Code', 'y_pred']], how='left')
+    df = df.merge(df_sub[['iso3', 'M49 Code', 'y_pred']], how='left')
     df.loc[df['y_pred']> 3 * df['Producer_price'].max(), 'y_pred'] = 0 # in very very few cases, price explodes if yields in prediction countries are much higher than yields in countries used to fit the regression. replacing those with regional means
     df['y_pred'] = df['y_pred'].fillna(0)
     
@@ -302,18 +294,6 @@ def reg_predict(df):
     df = gap_fill_yield(df, df[df['Yield']>0])
     df['Producer_price'] = df['Producer_price'] / df['Yield']
 
-    # aggregate by region abbreviation
-    df['Area_dup'] = df['Area']
-    df['Production_dup'] = df['Production']
-    df.loc[df['Area_dup']==0, 'Area_dup'] = 0.01 # to avoid getting nulls when aggregating by abbreviation
-    df.loc[df['Production_dup']==0, 'Production_dup'] = 0.01 # to avoid getting nulls when aggregating by abbreviation
-    df['total_yield'] = df['Yield'] * df['Area_dup']
-    df['total_price'] = df['Producer_price'] * df['Production_dup']
-    df= df.groupby(['Abbreviation', 'Item'])[['Area', 'Production', 
-                                              'total_yield', 'total_price', 
-                                              'Area_dup', 'Production_dup']].sum().reset_index()
-    df['Yield'] = df['total_yield'] / df['Area_dup']
-    df['Producer_price'] = df['total_price'] / df['Production_dup']
     return df
 
 if __name__ == '__main__':
@@ -412,13 +392,24 @@ if __name__ == '__main__':
         for item in items:
             print(item)
             df = combine_data(prod, prod_prices, gdp, sua, item, FAO_area_codes, category)
+            print(df.shape)
             df = reg_predict(df)
             df_category_list.append(df)
 
         df_category = pd.concat(df_category_list)
-        df_category = df_category.groupby(['Abbreviation'])[['Area', 'Production', 
-                                                             'total_yield', 'total_price',
-                                                             'Area_dup', 'Production_dup']].sum().reset_index()
+
+
+        # aggregate by category
+        df_category['Area_dup'] = df_category['Area']
+        df_category['Production_dup'] = df_category['Production']
+        df_category.loc[df_category['Area_dup']==0, 'Area_dup'] = 0.01 # to avoid getting nulls when aggregating by category
+        df_category.loc[df_category['Production_dup']==0, 'Production_dup'] = 0.01 # to avoid getting nulls when aggregating by cateogory
+        df_category['total_yield'] = df_category['Yield'] * df_category['Area_dup']
+        df_category['total_price'] = df_category['Producer_price'] * df_category['Production_dup']
+
+        df_category = df_category.groupby(['iso3'])[['Area', 'Production', 
+                                                     'total_yield', 'total_price',
+                                                     'Area_dup', 'Production_dup']].sum().reset_index()
         df_category['Yield'] = df_category['total_yield'] / df_category['Area_dup']
         df_category['Producer_price'] = df_category['total_price'] / df_category['Production_dup']
         df_category = df_category.drop(['total_yield', 'total_price', 'Area_dup', 'Production_dup'], axis=1)

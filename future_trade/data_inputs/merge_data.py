@@ -1,50 +1,32 @@
 # Usage: python -m future_trade.data_inputs.merge_data
 
-import geopandas as gpd
 import pandas as pd
 import numpy as np
 import os
 
-def get_area_codes():
+from future_trade.data_inputs.balance_trade import get_area_codes
 
-    FAO_area_codes = pd.read_csv('../../OPSIS/Data/Country_group/regions.csv')
-    FAO_area_codes = FAO_area_codes[['Abbreviation', 'M49 Code', 'iso3']]
-    # removing countries which don't have corresponding FBS/SUA or consumption data - leaves a total of 153 unique regions (Abbreviation is the unique identifier here)
-    FAO_area_codes = FAO_area_codes[~FAO_area_codes['Abbreviation'].isin(['ERI', 'GNQ', 'OSA', 'PSE', 'SSD'])] 
-    FAO_area_codes = FAO_area_codes.sort_values(by='Abbreviation').reset_index(drop=True)
+def _melt_matrix(df, var):
     
-    return FAO_area_codes
-
-def _melt_matrix(df, var, trade_thresh):
-    
-    df = df.rename(columns={'Abbreviation': 'from_abbreviation'})
-    df = df.melt(id_vars=['from_abbreviation'], value_vars=df['from_abbreviation'].values.tolist()).rename(
-        columns={'variable': 'to_abbreviation', 'value': var})
-    df.loc[df[var]<trade_thresh, var] = 0    
+    df = df.rename(columns={'iso3': 'from_iso3'})
+    df = df.melt(id_vars=['from_iso3'], value_vars=df['from_iso3'].values.tolist()).rename(
+        columns={'variable': 'to_iso3', 'value': var})
     
     return df
 
 # flows data
-def get_flows(category, trade_thresh=10):
+def get_flows(category):
 
-    flows_2017_2021 = pd.read_csv(f'../../OPSIS/Data/FAOSTAT/FAO_re_export/supply_matrix_{category}_2017_2021.csv')
-    flows_2017_2021 = _melt_matrix(flows_2017_2021, 'flow_2017_2021', trade_thresh)
-    
-    flows_2012_2016 = pd.read_csv(f'../../OPSIS/Data/FAOSTAT/FAO_re_export/supply_matrix_{category}_2012_2016.csv')
-    flows_2012_2016 = _melt_matrix(flows_2012_2016, 'flow_2012_2016', trade_thresh)
-    
-    flows = flows_2012_2016.merge(flows_2017_2021)
+    flows_2018_2022 = pd.read_csv(f'../../OPSIS/Data/FAOSTAT/FAO_re_export/supply_matrix_{category}_2018_2022.csv')
+    flows_2018_2022 = _melt_matrix(flows_2018_2022, 'flow_2018_2022')
+
+    flows_2013_2017 = pd.read_csv(f'../../OPSIS/Data/FAOSTAT/FAO_re_export/supply_matrix_{category}_2013_2017.csv')
+    flows_2013_2017 = _melt_matrix(flows_2013_2017, 'flow_2013_2017')
+
+    flows = flows_2013_2017.merge(flows_2018_2022)
     flows['IMPACT_code'] = category
     
-    imports = flows[flows['from_abbreviation']!=flows['to_abbreviation']].groupby(
-        ['to_abbreviation', 'IMPACT_code'])[['flow_2017_2021']].sum().reset_index().rename(
-        columns={'to_abbreviation': 'Abbreviation', 'flow_2017_2021': 'imports'})
-    exports = flows[flows['from_abbreviation']!=flows['to_abbreviation']].groupby(
-        ['from_abbreviation', 'IMPACT_code'])[['flow_2017_2021']].sum().reset_index().rename(
-        columns={'from_abbreviation': 'Abbreviation', 'flow_2017_2021': 'exports'})
-    imp_exp = imports.merge(exports)
-    
-    return flows, imp_exp
+    return flows
 
 def get_prod_prices(category):
 
@@ -53,7 +35,7 @@ def get_prod_prices(category):
 
     return prod_prices
 
-def get_transport_data(FAO_area_codes):
+def get_transport_data():
     
     transport_admin = pd.read_parquet('../../data/transport_data/global_lowest_transport_cost.parquet')
     transport_admin = transport_admin[['from_id', 'to_id', 'from_iso3', 'to_iso3', 'freight_USD_t', 'transport_USD_t', 'time_h', 'distance_km',
@@ -103,30 +85,24 @@ def get_transport_data(FAO_area_codes):
     transport_admin = transport_admin.sort_values(by=['from_id', 'to_id', 'transport_USD_t']).reset_index(drop=True)
     transport_admin = transport_admin.drop_duplicates(subset=['from_id', 'to_id'], keep='first').reset_index(drop=True)
     
-    transport_admin = transport_admin.merge(FAO_area_codes, left_on='from_iso3', right_on='iso3').drop(
-        ['iso3', 'M49 Code'], axis=1).rename(columns={'Abbreviation': 'from_abbreviation'})
-    transport_admin = transport_admin.merge(FAO_area_codes, left_on='to_iso3', right_on='iso3').drop(
-        ['iso3', 'M49 Code'], axis=1).rename(columns={'Abbreviation': 'to_abbreviation'})
-    
     transport_admin.loc[transport_admin['customs_cost'].isna(), 'customs_cost'] = 0
-    transport = transport_admin.groupby(['from_abbreviation', 'to_abbreviation'])[[
+    transport = transport_admin.groupby(['from_iso3', 'to_iso3'])[[
         'transport_USD_t', 'time_h', 'distance_km','border_USD_t', 'trade_USD_t', 'customs_cost']].mean().reset_index()
     
     return transport
 
-def get_tariffs_data(transport, FAO_area_codes, mm, codes):
+def get_tariffs_data(transport, mm, codes):
 
     # import tariffs data - codes based on https://comtradeplus.un.org/ListOfReferences 
     mm = mm[(mm['hs6_rev2017'].isin(codes))]
     mm_country = pd.read_csv('../../data/Import_tariffs/Countries.csv')
-    mm_country = mm_country.merge(FAO_area_codes[['iso3', 'Abbreviation']])
     
-    mm = mm.merge(mm_country[['code', 'Abbreviation']], right_on='code', left_on='importer').drop(
-        'code', axis=1).rename(columns={'Abbreviation': 'to_abbreviation'})
-    mm = mm.merge(mm_country[['code', 'Abbreviation']], right_on='code', left_on='exporter').drop(
-        'code', axis=1).rename(columns={'Abbreviation': 'from_abbreviation'})
+    mm = mm.merge(mm_country, right_on='code', left_on='importer').drop(
+        'code', axis=1).rename(columns={'iso3': 'to_iso3'})
+    mm = mm.merge(mm_country, right_on='code', left_on='exporter').drop(
+        'code', axis=1).rename(columns={'iso3': 'from_iso3'})
     mm = mm.drop(['importer', 'exporter', 'hs6_rev2017'], axis=1)
-    mm = mm.groupby(['from_abbreviation','to_abbreviation']).mean()[['Pref_Applied_AVE']].reset_index()
+    mm = mm.groupby(['from_iso3','to_iso3']).mean()[['Pref_Applied_AVE']].reset_index()
 
     # combining transport and tariffs data 
     transport = transport.merge(mm, how='left')
@@ -193,6 +169,90 @@ def get_supply_elas():
         g, supply_elas['Abbreviation'].unique())).reset_index(drop=True)
 
     return supply_elas
+
+def combine_country_data(prod_prices, demand_elas, supply_elas, flows, FAO_area_codes):
+
+    # aggregate flows by abbreviation, get imports and exports
+    flows = flows.merge(FAO_area_codes, left_on='from_iso3', right_on='iso3').drop('iso3', axis=1).rename(
+        columns={'Abbreviation': 'from_abbreviation'}).merge(FAO_area_codes, left_on='to_iso3', right_on='iso3').drop(
+        'iso3', axis=1).rename(columns={'Abbreviation': 'to_abbreviation'})
+    
+    prod = flows.groupby('from_iso3')[['flow_2018_2022']].sum().reset_index().rename(
+        columns={'from_iso3': 'iso3', 'flow_2018_2022': 'Production'})
+
+    # aggregate production, yield, prod price by abbreviation
+    df_country = prod_prices.merge(FAO_area_codes).drop('Production', axis=1).merge(prod)
+    df_country['Area_dup'] = df_country['Area']
+    df_country['Production_dup'] = df_country['Production']
+    df_country.loc[df_country['Area_dup']==0, 'Area_dup'] = 0.01 # to avoid getting nulls when aggregating 
+    df_country.loc[df_country['Production_dup']==0, 'Production_dup'] = 0.01 # to avoid getting nulls when aggregating 
+    df_country['total_yield'] = df_country['Yield'] * df_country['Area_dup']
+    df_country['total_price'] = df_country['Producer_price'] * df_country['Production_dup']
+
+    df_country = df_country.groupby(['Abbreviation'])[['Area', 'Production', 
+                                                      'total_yield', 'total_price',
+                                                      'Area_dup', 'Production_dup']].sum().reset_index()
+    df_country['Yield'] = df_country['total_yield'] / df_country['Area_dup']
+    df_country['Producer_price'] = df_country['total_price'] / df_country['Production_dup']
+    df_country = df_country.drop(['total_yield', 'total_price', 'Area_dup', 'Production_dup'], axis=1)
+
+    # merge with demand and supply elasticities
+    df_country = df_country.merge(demand_elas[demand_elas['year']==2020].drop(['year', 'demand_elas_baseline'], axis=1))
+    df_country = df_country.merge(supply_elas)
+    
+    flows = flows.groupby(['from_abbreviation', 'to_abbreviation', 'IMPACT_code'])[['flow_2018_2022']].sum().reset_index()
+    imports = flows[flows['from_abbreviation']!=flows['to_abbreviation']].groupby(
+        ['to_abbreviation', 'IMPACT_code'])[['flow_2018_2022']].sum().reset_index().rename(
+        columns={'to_abbreviation': 'Abbreviation', 'flow_2018_2022': 'imports'})
+    exports = flows[flows['from_abbreviation']!=flows['to_abbreviation']].groupby(
+        ['from_abbreviation', 'IMPACT_code'])[['flow_2018_2022']].sum().reset_index().rename(
+        columns={'from_abbreviation': 'Abbreviation', 'flow_2018_2022': 'exports'})
+    df_country = df_country.merge(imports).merge(exports)
+    
+    df_country['Consumption'] = df_country['Production'] + df_country['imports'] - df_country['exports'] 
+    df_country = df_country.rename(columns={'Abbreviation': 'abbreviation',
+                                            'Production': 'supply_q',
+                                            'Consumption': 'demand_q',
+                                            'imports': 'import_q',
+                                            'exports': 'export_q',
+                                            'Producer_price': 'prod_price_USD_t',
+                                            'Yield': 'yield_t_ha'}) 
+    df_country['domestic_q'] = df_country['supply_q'] - df_country['export_q']
+
+    return df_country
+
+def combine_bilateral_data(tariffs, flows, prod_prices, FAO_area_codes):
+    
+    tariffs = tariffs.merge(FAO_area_codes, left_on='from_iso3', right_on='iso3').drop(
+        ['iso3', 'M49 Code'], axis=1).rename(columns={'Abbreviation': 'from_abbreviation'})
+    tariffs = tariffs.merge(FAO_area_codes, left_on='to_iso3', right_on='iso3').drop(
+        ['iso3', 'M49 Code'], axis=1).rename(columns={'Abbreviation': 'to_abbreviation'})
+
+    df_bilateral = flows.merge(tariffs).fillna(0)
+
+    # aggregate flows, trade_costs, adv by abbreviation pairs
+    df_bilateral = df_bilateral.merge(prod_prices, left_on=['from_iso3', 'IMPACT_code'], right_on=['iso3', 'IMPACT_code']).drop('iso3', axis=1)
+    df_bilateral['flow_dup'] = df_bilateral['flow_2018_2022']
+    df_bilateral.loc[df_bilateral['flow_dup']==0, 'flow_dup'] = 0.01 # to avoid getting nulls when aggregating 
+    df_bilateral['total_trade_cost'] = df_bilateral['trade_USD_t'] * df_bilateral['flow_dup']    
+    df_bilateral['tariff_value'] = (df_bilateral['Producer_price'] + df_bilateral['trade_USD_t']) * df_bilateral['flow_dup']
+    df_bilateral.loc[df_bilateral['tariff_value']==0, 'tariff_value'] = 0.0001 # to avoid getting nulls when aggregating 
+    df_bilateral['total_tariff'] = (df_bilateral['Producer_price'] + df_bilateral['trade_USD_t']) * df_bilateral['Pref_Applied_AVE'] * df_bilateral['flow_dup']
+    df_bilateral = df_bilateral.groupby(['from_abbreviation', 'to_abbreviation', 'IMPACT_code'])[[
+        'flow_2013_2017', 'flow_2018_2022', 'total_trade_cost', 'total_tariff', 'flow_dup', 'tariff_value']].sum().reset_index()
+    df_bilateral['trade_USD_t'] = df_bilateral['total_trade_cost'] / df_bilateral['flow_dup']
+    df_bilateral['Pref_Applied_AVE'] = df_bilateral['total_tariff'] / df_bilateral['tariff_value']
+    df_bilateral = df_bilateral.drop(['total_trade_cost', 'total_tariff', 'flow_dup', 'tariff_value'], axis=1)
+
+    df_bilateral['trade_relationship'] = 0
+    df_bilateral.loc[df_bilateral['flow_2018_2022']>0, 'trade_relationship'] = 1
+    df_bilateral['trade_relationship_old'] = 0
+    df_bilateral.loc[df_bilateral['flow_2013_2017']>0, 'trade_relationship_old'] = 1
+    df_bilateral = df_bilateral.rename(columns={'Pref_Applied_AVE': 'adv',
+                                                'flow_2013_2017': 'q_old',
+                                                'flow_2018_2022': 'q_calib'})
+    
+    return df_bilateral
 
 if __name__ == '__main__':
     
@@ -265,7 +325,8 @@ if __name__ == '__main__':
     }
    
     FAO_area_codes = get_area_codes()
-    transport = get_transport_data(FAO_area_codes)
+    FAO_area_codes = FAO_area_codes[~FAO_area_codes['iso3'].isin(['COK', 'KIR', 'MDV', 'MHL', 'MLT', 'NIU', 'STP', 'TKL', 'FRO'])] # removing countries with incomplete trade cost data
+    transport = get_transport_data()
     mm_2019 = pd.read_csv('../../data/Import_tariffs/mm2019.csv', sep=';')
     demand_elas = get_demand_elas()
     supply_elas = get_supply_elas()
@@ -273,41 +334,20 @@ if __name__ == '__main__':
     for category in items_dict.keys():
         print(category)
         
-        flows, imp_exp = get_flows(category, trade_thresh=1)
+        flows = get_flows(category)
         prod_prices = get_prod_prices(category) # in USD per tonne
-        tariffs = get_tariffs_data(transport, FAO_area_codes, mm_2019, items_dict[category])
+        tariffs = get_tariffs_data(transport, mm_2019, items_dict[category])
 
-        df_country = prod_prices.merge(imp_exp)
-        df_country = df_country.merge(demand_elas[demand_elas['year']==2020].drop(['year', 'demand_elas_baseline'], axis=1))
-        df_country = df_country.merge(supply_elas)
-        df_country['Consumption'] = df_country['Production'] + df_country['imports'] - df_country['exports'] 
-        df_country = df_country.rename(columns={'Abbreviation': 'abbreviation',
-                                                'Production': 'supply_q',
-                                                'Consumption': 'demand_q',
-                                                'imports': 'import_q',
-                                                'exports': 'export_q',
-                                                'Producer_price': 'prod_price_USD_t',
-                                                'Yield': 'yield_t_ha'}) 
-        df_country['domestic_q'] = df_country['supply_q'] - df_country['export_q']
-
-        df_bilateral = flows.merge(tariffs, how='left').fillna(0)
-        df_bilateral['trade_relationship'] = 0
-        df_bilateral.loc[df_bilateral['flow_2017_2021']>0, 'trade_relationship'] = 1
-        df_bilateral['trade_relationship_old'] = 0
-        df_bilateral.loc[df_bilateral['flow_2012_2016']>0, 'trade_relationship_old'] = 1
-        df_bilateral = df_bilateral.rename(columns={'Pref_Applied_AVE': 'adv',
-                                                    'flow_2012_2016': 'q_old',
-                                                    'flow_2017_2021': 'q_calib'})
-
+        df_country = combine_country_data(prod_prices, demand_elas, supply_elas, flows, FAO_area_codes)
+        df_bilateral = combine_bilateral_data(tariffs, flows, prod_prices, FAO_area_codes)
+        
         # exporting country datasets
         df_country[['abbreviation', 'IMPACT_code', 'yield_t_ha', 'prod_price_USD_t',
                     'import_q', 'export_q', 'demand_q', 'supply_q', 'domestic_q', 'demand_elas', 'supply_elas'
                     ]].to_csv(f'../../OPSIS/Data/Trade_clearance_model/Input/Country_data/country_information_{category}.csv', index=False)
 
         # exporting bilateral datasets
-        df_bilateral[['from_abbreviation', 'to_abbreviation', 'IMPACT_code', 
-                      'transport_USD_t', 'time_h', 'distance_km',
-                      'border_USD_t', 'trade_USD_t', 'customs_cost', 'adv',
+        df_bilateral[['from_abbreviation', 'to_abbreviation', 'IMPACT_code', 'trade_USD_t', 'adv',
                       'q_calib', 'trade_relationship', 'q_old', 'trade_relationship_old' 
                      ]].to_csv(f'../../OPSIS/Data/Trade_clearance_model/Input/Trade_cost/bilateral_trade_cost_{category}.csv', index=False)
         

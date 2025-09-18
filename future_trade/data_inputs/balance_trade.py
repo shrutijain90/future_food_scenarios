@@ -1,6 +1,5 @@
 # Usage: python -m future_trade.data_inputs.balance_trade
 
-import geopandas as gpd
 import pandas as pd
 import numpy as np
 
@@ -9,10 +8,18 @@ data_dir_prefix = '../../data/'
 def get_area_codes():
 
     FAO_area_codes = pd.read_csv('../../OPSIS/Data/Country_group/regions.csv')
-    FAO_area_codes = FAO_area_codes[['Abbreviation', 'M49 Code', 'iso3']]
-    # removing countries which don't have corresponding FBS/SUA or consumption data - leaves a total of 153 unique regions (Abbreviation is the unique identifier here)
+    FAO_area_codes = FAO_area_codes[['Abbreviation', 'M49 Code', 'iso3', 'Region Name', 'Sub-region Name', 'Intermediate Region Name']]
+    FAO_area_codes.loc[FAO_area_codes['Intermediate Region Name'].isna(), 'Intermediate Region Name'] = FAO_area_codes[FAO_area_codes['Intermediate Region Name'].isna()]['Sub-region Name']
+    # removing countries which don't have corresponding FBS/SUA or consumption data - leaves a total of 153 unique IMPACT regions, 193 iso3 codes (Abbreviation + iso3 is the unique identifier here)
     FAO_area_codes = FAO_area_codes[~FAO_area_codes['Abbreviation'].isin(['ERI', 'GNQ', 'OSA', 'PSE', 'SSD'])] 
     FAO_area_codes = FAO_area_codes.sort_values(by='Abbreviation').reset_index(drop=True)
+
+    df = pd.read_csv(f'{data_dir_prefix}FAOSTAT_A-S_E/Production_Crops_Livestock_E_All_Data_(Normalized)/Production_Crops_Livestock_E_All_Data_(Normalized).csv',
+                       encoding='latin1')
+    df = df[df['Year']==2017][['Area Code (M49)']].drop_duplicates()
+    df['Area Code (M49)'] = df.apply(lambda row: int(row['Area Code (M49)'][1:]), axis=1)
+    df = df.rename(columns={'Area Code (M49)': 'M49 Code'}).reset_index(drop=True)
+    FAO_area_codes = FAO_area_codes.merge(df).sort_values(by='iso3').reset_index(drop=True)
     
     return FAO_area_codes
 
@@ -29,7 +36,6 @@ def get_prod_matrix(prod, item, year, FAO_area_codes, processing_factors):
     prod = prod.merge(FAO_area_codes, how='right')
     prod = prod[['iso3', 'M49 Code', 'Abbreviation', 'Production']]
     prod = prod.fillna(0)
-    prod = prod.groupby('Abbreviation').sum()[['Production']].reset_index().sort_values(by='Abbreviation')
     
     # applying a processing factor for sugar and oil crops where needed
     prod['Item'] = item
@@ -65,21 +71,21 @@ def get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_items, trade_f
             columns={'prop': 'prop_partner'})
         m = m.fillna(0)
 
-        m.loc[(m['Element']=='Export Quantity') 
+        m.loc[(m['Element']=='Export quantity') 
               & (m['Item'].isin(['Raw cane or beet sugar (centrifugal only)',
                                  'Refined sugar'])), 'Value'] = m[
-            (m['Element']=='Export Quantity') 
+            (m['Element']=='Export quantity') 
             & (m['Item'].isin(['Raw cane or beet sugar (centrifugal only)',
-                               'Refined sugar']))]['Value'] * m[(m['Element']=='Export Quantity')
+                               'Refined sugar']))]['Value'] * m[(m['Element']=='Export quantity')
                                                                 & (m['Item'].isin(['Raw cane or beet sugar (centrifugal only)',
                                                                                    'Refined sugar']))]['prop_reporter']
 
-        m.loc[(m['Element']=='Import Quantity') 
+        m.loc[(m['Element']=='Import quantity') 
               & (m['Item'].isin(['Raw cane or beet sugar (centrifugal only)',
                                  'Refined sugar'])), 'Value'] = m[
-            (m['Element']=='Import Quantity') 
+            (m['Element']=='Import quantity') 
             & (m['Item'].isin(['Raw cane or beet sugar (centrifugal only)',
-                               'Refined sugar']))]['Value'] * m[(m['Element']=='Import Quantity')
+                               'Refined sugar']))]['Value'] * m[(m['Element']=='Import quantity')
                                                                 & (m['Item'].isin(['Raw cane or beet sugar (centrifugal only)',
                                                                                    'Refined sugar']))]['prop_partner']
         
@@ -89,7 +95,7 @@ def get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_items, trade_f
     # preparing trade matrix
 
     if len(trade_items)==0:
-        E = np.zeros((FAO_area_codes['Abbreviation'].nunique(), FAO_area_codes['Abbreviation'].nunique()))
+        E = np.zeros((FAO_area_codes['iso3'].nunique(), FAO_area_codes['iso3'].nunique()))
         return E
     else:
         mat = mat[(mat['Year']==year) & (mat['Item'].isin(trade_items)) 
@@ -98,7 +104,7 @@ def get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_items, trade_f
                                             'Year', 'Unit', 'Value']].reset_index(drop=True)
 
         if len(mat)==0:
-            E = np.zeros((FAO_area_codes['Abbreviation'].nunique(), FAO_area_codes['Abbreviation'].nunique()))
+            E = np.zeros((FAO_area_codes['iso3'].nunique(), FAO_area_codes['iso3'].nunique()))
             return E
         
         # applying a factor to account for trade of a differently processed product where needed 
@@ -124,10 +130,10 @@ def get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_items, trade_f
         
     # reliability index from "Reconciling bilateral trade data for use in GTAP"
     # accuracy level for each import 
-    imports = mat[mat['Element']=='Import Quantity']
+    imports = mat[mat['Element']=='Import quantity']
     imports = imports.rename(columns={'Reporter Countries': 'Country A', 'Partner Countries': 'Country B',
                                       'Reporter Country Code (M49)': 'Country A Code', 'Partner Country Code (M49)': 'Country B Code'})
-    exports = mat[mat['Element']=='Export Quantity']
+    exports = mat[mat['Element']=='Export quantity']
     exports = exports.rename(columns={'Reporter Countries': 'Country B', 'Partner Countries': 'Country A',
                                       'Reporter Country Code (M49)': 'Country B Code', 'Partner Country Code (M49)': 'Country A Code'})
 
@@ -136,12 +142,12 @@ def get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_items, trade_f
                   columns = 'Element',values = 'Value').reset_index()
     df = df.fillna(0)
 
-    if 'Import Quantity' not in df.columns.tolist():
-        df['Import Quantity'] = 0
-    if 'Export Quantity' not in df.columns.tolist():
-        df['Export Quantity'] = 0
+    if 'Import quantity' not in df.columns.tolist():
+        df['Import quantity'] = 0
+    if 'Export quantity' not in df.columns.tolist():
+        df['Export quantity'] = 0
     
-    df = df.rename(columns={'Import Quantity': 'Import rep A', 'Export Quantity': 'Export rep B',})
+    df = df.rename(columns={'Import quantity': 'Import rep A', 'Export quantity': 'Export rep B',})
     df = df[(df['Import rep A']!=0) | (df['Export rep B']!=0)].reset_index(drop=True)
     df['AL'] = 2*(df['Import rep A'] - df['Export rep B']).abs()/(df['Import rep A'] + df['Export rep B'])
     row_cond = (df['AL']==2) & (df['Import rep A']<10) & (df['Export rep B']<10)
@@ -177,24 +183,24 @@ def get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_items, trade_f
     trade_mat = trade_mat.drop(['Country A', 'Country A Code'], axis=1)
     trade_mat = trade_mat.rename(columns={'M49 Code': 'Country A M49', 'Abbreviation': 'Country A Abbreviation',
                                           'iso3': 'Country A iso3'})
-    trade_mat = trade_mat.sort_values(by='Country A Abbreviation')
+    trade_mat = trade_mat.sort_values(by='Country A iso3')
     
     def _add_all_countries(m):
         m = m.merge(FAO_area_codes, left_on='Country B Code', right_on='M49 Code', how='right')
         m = m.drop(['Country B', 'Country B Code', 'Country A iso3', 'Country A M49', 'Country A Abbreviation'], axis=1)
         m = m.rename(columns={'M49 Code': 'Country B M49', 'Abbreviation': 'Country B Abbreviation',
                                               'iso3': 'Country B iso3'})
-        m = m.sort_values(by='Country B Abbreviation')
+        m = m.sort_values(by='Country B iso3')
         return m
 
     trade_mat = trade_mat.groupby(['Country A iso3', 'Country A M49', 'Country A Abbreviation']).apply(lambda g: _add_all_countries(g)).reset_index()
 
     trade_mat = trade_mat.drop('level_3', axis=1)
     trade_mat = trade_mat.fillna(0)
-    trade_mat.loc[trade_mat['Country A Abbreviation']==trade_mat['Country B Abbreviation'], 'From B to A'] = 0
-    trade_mat = trade_mat[['Country A Abbreviation', 'Country B Abbreviation', 'From B to A']].groupby(['Country A Abbreviation', 'Country B Abbreviation']).sum().reset_index()
-    trade_mat = pd.pivot(trade_mat, index=['Country B Abbreviation'], columns = 'Country A Abbreviation',values = 'From B to A').reset_index()
-    E = trade_mat.drop(['Country B Abbreviation'], axis=1).to_numpy()
+    trade_mat.loc[trade_mat['Country A iso3']==trade_mat['Country B iso3'], 'From B to A'] = 0
+    trade_mat = trade_mat[['Country A iso3', 'Country B iso3', 'From B to A']].groupby(['Country A iso3', 'Country B iso3']).sum().reset_index()
+    trade_mat = pd.pivot(trade_mat, index=['Country B iso3'], columns = 'Country A iso3',values = 'From B to A').reset_index()
+    E = trade_mat.drop(['Country B iso3'], axis=1).to_numpy()
     return E
 
 
@@ -289,13 +295,13 @@ def split_flows(sua, item, year, FAO_area_codes, proc):
     sua = sua.merge(FAO_area_codes, how='right')
     sua = sua[['iso3', 'M49 Code', 'Abbreviation', 'Domestic supply quantity', 'Processing']]
     sua = sua.fillna(0)
-    sua = sua.groupby('Abbreviation').sum()[['Domestic supply quantity', 'Processing']].reset_index().sort_values(by='Abbreviation')
+    sua = sua.groupby('iso3').sum()[['Domestic supply quantity', 'Processing']].reset_index().sort_values(by='iso3')
     sua['proc_prop'] = sua['Processing'] / sua['Domestic supply quantity']
     sua.loc[sua['Domestic supply quantity']==0, 'proc_prop'] = 0
     sua.loc[sua['proc_prop']>1, 'proc_prop'] = 1
     if proc==0:
         sua['proc_prop'] = 1 - sua['proc_prop']
-    sua = sua.sort_values('Abbreviation').reset_index(drop=True)
+    sua = sua.sort_values('iso3').reset_index(drop=True)
 
     return sua['proc_prop'].values
 
@@ -459,85 +465,85 @@ if __name__ == '__main__':
     # based on 'IMPACT_code column in crop correspondance tables'    
     items_dict = {
                   # wheat
-                  # 'jwhea': ['Wheat'],
+                  'jwhea': ['Wheat'],
                   
                   # rice
-                  # 'jrice': ['Rice'],
+                  'jrice': ['Rice'],
                   
                   # maize
-                  # 'jmaiz': ['Maize (corn)'],
+                  'jmaiz': ['Maize (corn)'],
                   
                   # othr_grains
-                  # 'jbarl': ['Barley'],
-                  # 'jmill': ['Millet'], 
-                  # 'jsorg': ['Sorghum'], 
-                  # 'jocer': ['Rye', 'Oats', 'Buckwheat', 'Quinoa', 'Canary seed', 'Fonio', 'Mixed grain', 'Triticale', 'Cereals n.e.c.'], 
+                  'jbarl': ['Barley'],
+                  'jmill': ['Millet'], 
+                  'jsorg': ['Sorghum'], 
+                  'jocer': ['Rye', 'Oats', 'Buckwheat', 'Quinoa', 'Canary seed', 'Fonio', 'Mixed grain', 'Triticale', 'Cereals n.e.c.'], 
                   
                   # roots
-                  # 'jcass': ['Cassava, fresh'], 
-                  # 'jpota': ['Potatoes'], 
-                  # 'jswpt': ['Sweet potatoes'],
-                  # 'jyams': ['Yams'],
-                  # 'jorat': ['Taro', 'Edible roots and tubers with high starch or inulin content, n.e.c., fresh'],
+                  'jcass': ['Cassava, fresh'], 
+                  'jpota': ['Potatoes'], 
+                  'jswpt': ['Sweet potatoes'],
+                  'jyams': ['Yams'],
+                  'jorat': ['Taro', 'Edible roots and tubers with high starch or inulin content, n.e.c., fresh'],
                   
                   # vegetables
-                  # 'jvege': ['Artichokes', 'Asparagus', 'Broad beans and horse beans, green', 'Cabbages', 'Carrots and turnips', 'Cauliflowers and broccoli',
-                  #           'Chillies and peppers, green (Capsicum spp. and Pimenta spp.)', 'Cucumbers and gherkins', 'Eggplants (aubergines)', 'Green corn (maize)',
-                  #           'Green garlic', 'Leeks and other alliaceous vegetables', 'Lettuce and chicory', 'Mushrooms and truffles', 'Okra',
-                  #           'Onions and shallots, dry (excluding dehydrated)', 'Onions and shallots, green', 'Other beans, green', 'Other vegetables, fresh n.e.c.',
-                  #           'Peas, green', 'Pumpkins, squash and gourds', 'Spinach', 'String beans', 'Tomatoes'],
+                  'jvege': ['Artichokes', 'Asparagus', 'Broad beans and horse beans, green', 'Cabbages', 'Carrots and turnips', 'Cauliflowers and broccoli',
+                            'Chillies and peppers, green (Capsicum spp. and Pimenta spp.)', 'Cucumbers and gherkins', 'Eggplants (aubergines)', 'Green corn (maize)',
+                            'Green garlic', 'Leeks and other alliaceous vegetables', 'Lettuce and chicory', 'Mushrooms and truffles', 'Okra',
+                            'Onions and shallots, dry (excluding dehydrated)', 'Onions and shallots, green', 'Other beans, green', 'Other vegetables, fresh n.e.c.',
+                            'Peas, green', 'Pumpkins, squash and gourds', 'Spinach', 'String beans', 'Tomatoes'],
                   
-                  # fruits
-                  # 'jbana': ['Bananas'], 
-                  # 'jplnt': ['Plantains and cooking bananas'], 
-                  # 'jsubf': ['Apricots', 'Avocados', 'Cantaloupes and other melons', 'Cashewapple', 'Dates', 'Figs', 
-                  #           'Kiwi fruit', 'Lemons and limes', 'Locust beans (carobs)', 'Mangoes, guavas and mangosteens', 
-                  #           'Oranges', 'Other citrus fruit, n.e.c.', 'Other fruits, n.e.c.', 'Other tropical fruits, n.e.c.', 'Papayas', 
-                  #           'Pineapples', 'Pomelos and grapefruits', 'Tangerines, mandarins, clementines', 
-                  #           'Watermelons', 'Coconuts, in shell'], 
-                  # 'jtemf': ['Apples', 'Grapes', 'Blueberries', 'Cherries', 'Cranberries', 'Currants', 'Gooseberries', 
-                  #           'Other berries and fruits of the genus vaccinium n.e.c.', 'Other pome fruits', 'Other stone fruits', 
-                  #           'Peaches and nectarines', 'Pears', 'Persimmons', 'Plums and sloes', 'Quinces', 'Raspberries', 
-                  #           'Sour cherries', 'Strawberries', 'Olives'], 
+                #   fruits
+                  'jbana': ['Bananas'], 
+                  'jplnt': ['Plantains and cooking bananas'], 
+                  'jsubf': ['Apricots', 'Avocados', 'Cantaloupes and other melons', 'Cashewapple', 'Dates', 'Figs', 
+                            'Kiwi fruit', 'Lemons and limes', 'Locust beans (carobs)', 'Mangoes, guavas and mangosteens', 
+                            'Oranges', 'Other citrus fruit, n.e.c.', 'Other fruits, n.e.c.', 'Other tropical fruits, n.e.c.', 'Papayas', 
+                            'Pineapples', 'Pomelos and grapefruits', 'Tangerines, mandarins, clementines', 
+                            'Watermelons', 'Coconuts, in shell'], 
+                  'jtemf': ['Apples', 'Grapes', 'Blueberries', 'Cherries', 'Cranberries', 'Currants', 'Gooseberries', 
+                            'Other berries and fruits of the genus vaccinium n.e.c.', 'Other pome fruits', 'Other stone fruits', 
+                            'Peaches and nectarines', 'Pears', 'Persimmons', 'Plums and sloes', 'Quinces', 'Raspberries', 
+                            'Sour cherries', 'Strawberries', 'Olives'], 
                   
                   # legumes
-                  # 'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
-                  # 'jchkp': ['Chick peas, dry'],
-                  # 'jcowp': ['Cow peas, dry'],
-                  # 'jlent': ['Lentils, dry'], 
-                  # 'jpigp': ['Pigeon peas, dry'], 
-                  # 'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
+                  'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
+                  'jchkp': ['Chick peas, dry'],
+                  'jcowp': ['Cow peas, dry'],
+                  'jlent': ['Lentils, dry'], 
+                  'jpigp': ['Pigeon peas, dry'], 
+                  'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
                   
                   # soybeans
                   'jsoyb': ['Soya beans'],
                   
                   # nuts_seeds
-                  # 'jgrnd': ['Groundnuts, excluding shelled'], 
-                  # 'jothr': ['Almonds, in shell', 'Brazil nuts, in shell', 'Cashew nuts, in shell', 'Chestnuts, in shell', 'Hazelnuts, in shell', 
-                  #           'Other nuts (excluding wild edible nuts and groundnuts), in shell, n.e.c.', 'Pistachios, in shell', 'Walnuts, in shell', 
-                  #           'Linseed', 'Hempseed', 'Sunflower seed', 'Safflower seed', 'Poppy seed', 'Sesame seed'],
+                  'jgrnd': ['Groundnuts, excluding shelled'], 
+                  'jothr': ['Almonds, in shell', 'Brazil nuts, in shell', 'Cashew nuts, in shell', 'Chestnuts, in shell', 'Hazelnuts, in shell', 
+                            'Other nuts (excluding wild edible nuts and groundnuts), in shell, n.e.c.', 'Pistachios, in shell', 'Walnuts, in shell', 
+                            'Linseed', 'Hempseed', 'Sunflower seed', 'Safflower seed', 'Poppy seed', 'Sesame seed'],
                   
                   
                   # oil_veg
-                  # 'jrpsd': ['Rape or colza seed'], 
-                  # 'jsnfl': ['Sunflower seed'], 
-                  # 'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Safflower seed', 'Sesame seed',
-                  #           'Castor oil seeds', 'Cotton seed', 'Coconuts, in shell', 'Mustard seed', 'Olives'], 
+                  'jrpsd': ['Rape or colza seed'], 
+                  'jsnfl': ['Sunflower seed'], 
+                  'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Safflower seed', 'Sesame seed',
+                            'Castor oil seeds', 'Cotton seed', 'Coconuts, in shell', 'Mustard seed', 'Olives'], 
                   
                   # oil_palm
-                  # 'jpalm': ['Oil palm fruit'], 
+                  'jpalm': ['Oil palm fruit'], 
                   
                   # sugar
-                  # 'jsugb': ['Sugar beet'], 
-                  # 'jsugc': ['Sugar cane'],   
+                  'jsugb': ['Sugar beet'], 
+                  'jsugc': ['Sugar cane'],   
 
                   # for calculating feed
-                  # 'milk': ['Milk, Total'],
-                  # 'beef': ['Beef and Buffalo Meat, primary'],
-                  # 'eggs': ['Eggs Primary'],
-                  # 'poultry': ['Meat, Poultry'],
-                  # 'lamb': ['Sheep and Goat Meat'],
-                  # 'pork': ['Meat of pig with the bone, fresh or chilled']
+                  'milk': ['Milk, Total'],
+                  'beef': ['Beef and Buffalo Meat, primary'],
+                  'eggs': ['Eggs Primary'],
+                  'poultry': ['Meat, Poultry'],
+                  'lamb': ['Sheep and Goat Meat'],
+                  'pork': ['Meat of pig with the bone, fresh or chilled']
     }
 
     prod = pd.read_csv(f'{data_dir_prefix}FAOSTAT_A-S_E/Production_Crops_Livestock_E_All_Data_(Normalized)/Production_Crops_Livestock_E_All_Data_(Normalized).csv',
@@ -549,11 +555,12 @@ if __name__ == '__main__':
     trade_factors = pd.read_csv('../../OPSIS/Data/FAOSTAT/trade_factors.csv') # for things like cassava starch etc
     processing_factors = pd.read_csv('../../OPSIS/Data/FAOSTAT/processing_factors.csv') # for oil and sugar crops
     
-    years = [2017, 2018, 2019, 2020, 2021] # 2022 has some information missing (e.g. production for coconut oil), so considering 2017-2021
-    # years = [2012, 2013, 2014, 2015, 2016]
+    # years = [2018, 2019, 2020, 2021, 2022] 
+    years = [2013, 2014, 2015, 2016, 2017]
     
     FAO_area_codes = get_area_codes()
-    
+    FAO_area_codes = FAO_area_codes.drop(['Region Name', 'Sub-region Name', 'Intermediate Region Name'], axis=1)
+
     for category in items_dict.keys():
         print(category)
         items = items_dict[category]
@@ -566,10 +573,10 @@ if __name__ == '__main__':
             print(year)
             
             # create empty matrix
-            category_P = np.zeros((FAO_area_codes['Abbreviation'].nunique(),1))
-            category_E = np.zeros((FAO_area_codes['Abbreviation'].nunique(), FAO_area_codes['Abbreviation'].nunique()))
-            category_D = np.zeros((FAO_area_codes['Abbreviation'].nunique(), FAO_area_codes['Abbreviation'].nunique()))
-            
+            category_P = np.zeros((FAO_area_codes['iso3'].nunique(),1))
+            category_E = np.zeros((FAO_area_codes['iso3'].nunique(), FAO_area_codes['iso3'].nunique()))
+            category_D = np.zeros((FAO_area_codes['iso3'].nunique(), FAO_area_codes['iso3'].nunique()))
+
             for item in items:
                 print(item)
                 P = get_prod_matrix(prod, item, year, FAO_area_codes, processing_factors)
@@ -591,32 +598,32 @@ if __name__ == '__main__':
                 category_E = np.add(category_E, E)
                 category_D = np.add(category_D, D)
 
-            abbr = FAO_area_codes['Abbreviation'].unique()
-            abbr.sort()
+            iso3 = FAO_area_codes['iso3'].unique()
+            iso3.sort()
     
             df_category_P = pd.DataFrame(category_P, columns=['prod'])
-            df_category_P['Abbreviation'] = pd.Series(abbr.tolist(), index=df_category_P.index)
-            first_column = df_category_P.pop('Abbreviation')
-            df_category_P.insert(0, 'Abbreviation', first_column)
+            df_category_P['iso3'] = pd.Series(iso3.tolist(), index=df_category_P.index)
+            first_column = df_category_P.pop('iso3')
+            df_category_P.insert(0, 'iso3', first_column)
             df_P_list.append(df_category_P)
-            
-            df_category_E = pd.DataFrame(category_E, columns = abbr.tolist())
-            df_category_E['Abbreviation'] = pd.Series(abbr.tolist(), index=df_category_E.index)
-            first_column = df_category_E.pop('Abbreviation')
-            df_category_E.insert(0, 'Abbreviation', first_column)
+
+            df_category_E = pd.DataFrame(category_E, columns = iso3.tolist())
+            df_category_E['iso3'] = pd.Series(iso3.tolist(), index=df_category_E.index)
+            first_column = df_category_E.pop('iso3')
+            df_category_E.insert(0, 'iso3', first_column)
             df_E_list.append(df_category_E)
-            
-            df_category_D = pd.DataFrame(category_D, columns = abbr.tolist())
-            df_category_D['Abbreviation'] = pd.Series(abbr.tolist(), index=df_category_D.index)
-            first_column = df_category_D.pop('Abbreviation')
-            df_category_D.insert(0, 'Abbreviation', first_column)
+
+            df_category_D = pd.DataFrame(category_D, columns = iso3.tolist())
+            df_category_D['iso3'] = pd.Series(iso3.tolist(), index=df_category_D.index)
+            first_column = df_category_D.pop('iso3')
+            df_category_D.insert(0, 'iso3', first_column)
             df_D_list.append(df_category_D)
 
-        df_category_P = pd.concat(df_P_list).groupby('Abbreviation').mean().reset_index()
+        df_category_P = pd.concat(df_P_list).groupby('iso3').mean().reset_index()
         df_category_P.to_csv(f'../../OPSIS/Data/FAOSTAT/FAO_prod_mat/prod_matrix_{category}_{years[0]}_{years[-1]}.csv', index=False)
-        df_category_E = pd.concat(df_E_list).groupby('Abbreviation').mean().reset_index()
+        df_category_E = pd.concat(df_E_list).groupby('iso3').mean().reset_index()
         df_category_E.to_csv(f'../../OPSIS/Data/FAOSTAT/FAO_bal_trade_mat/trade_matrix_{category}_{years[0]}_{years[-1]}.csv', index=False)
-        df_category_D = pd.concat(df_D_list).groupby('Abbreviation').mean().reset_index()
+        df_category_D = pd.concat(df_D_list).groupby('iso3').mean().reset_index()
         df_category_D.to_csv(f'../../OPSIS/Data/FAOSTAT/FAO_re_export/supply_matrix_{category}_{years[0]}_{years[-1]}.csv', index=False)
 
 
