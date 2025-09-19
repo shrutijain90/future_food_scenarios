@@ -4,8 +4,6 @@ import pandas as pd
 import numpy as np
 import os
 
-from future_trade.data_inputs.balance_trade import get_area_codes
-
 def aggregate_elas(demand_elas, supply_elas, dem_sup_all, area_codes):
     # weight demand elasticity by 2020 demand
     # weigh supply elasticity by 2020 supply
@@ -54,9 +52,9 @@ def aggregate_bilateral_trade(df_bilateral, df_country, area_codes):
     df_bilateral = df_bilateral.drop(['total_trade_cost', 'total_tariff', 'flow_dup', 'tariff_value'], axis=1)
 
     df_bilateral['trade_relationship'] = 0
-    df_bilateral.loc[df_bilateral['q_calib']>0, 'trade_relationship'] = 1
+    df_bilateral.loc[df_bilateral['q_calib']>1, 'trade_relationship'] = 1
     df_bilateral['trade_relationship_old'] = 0
-    df_bilateral.loc[df_bilateral['q_old']>0, 'trade_relationship_old'] = 1
+    df_bilateral.loc[df_bilateral['q_old']>1, 'trade_relationship_old'] = 1
 
     return df_bilateral
 
@@ -146,6 +144,7 @@ if __name__ == '__main__':
 
     area_codes = pd.read_csv('../../OPSIS/Data/Country_group/regions_grouped.csv').rename(
         columns= {'Abbreviation': 'abbreviation'})[['abbreviation', 'iso3', 'abbreviation_new']]
+    area_codes = area_codes[~area_codes['iso3'].isin(['COK', 'KIR', 'MDV', 'MHL', 'MLT', 'NIU', 'STP', 'TKL', 'FRO'])] # removing countries with incomplete trade cost data
     
     demand_elas = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/Input/Future_scenarios/SSP2/IMPACT_future_demand_elas.csv')
     supply_elas = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/Input/Future_scenarios/SSP2/IMPACT_supply_elas.csv')

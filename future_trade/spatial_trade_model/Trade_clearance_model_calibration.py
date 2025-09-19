@@ -78,7 +78,7 @@ if __name__ == '__main__':
         #### run step 2 calibration ####
         logging.info('Model step 2')
         
-        if crop_code in ['jsorg', 'jyams', 'jvege', 'jbean', 'jchkp', 'jpigp', 'jgrnd', 'jothr']:
+        if crop_code in ['jmill', 'jsorg', 'jyams', 'jvege', 'jbean', 'jchkp', 'jpigp', 'jgrnd', 'jothr']:
             wtc = 1
             wp = 1
             wx = 1000
@@ -91,7 +91,7 @@ if __name__ == '__main__':
             wx = 1000
             count_max = 50
             max_iter = 3000
-            scale_factor = 100
+            scale_factor = 500
         
         model_calibration = trade_clearance_calibration(country_info=country_class,
                                                         bilateral_info=bilateral_class,

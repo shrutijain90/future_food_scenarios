@@ -245,9 +245,9 @@ def combine_bilateral_data(tariffs, flows, prod_prices, FAO_area_codes):
     df_bilateral = df_bilateral.drop(['total_trade_cost', 'total_tariff', 'flow_dup', 'tariff_value'], axis=1)
 
     df_bilateral['trade_relationship'] = 0
-    df_bilateral.loc[df_bilateral['flow_2018_2022']>0, 'trade_relationship'] = 1
+    df_bilateral.loc[df_bilateral['flow_2018_2022']>1, 'trade_relationship'] = 1
     df_bilateral['trade_relationship_old'] = 0
-    df_bilateral.loc[df_bilateral['flow_2013_2017']>0, 'trade_relationship_old'] = 1
+    df_bilateral.loc[df_bilateral['flow_2013_2017']>1, 'trade_relationship_old'] = 1
     df_bilateral = df_bilateral.rename(columns={'Pref_Applied_AVE': 'adv',
                                                 'flow_2013_2017': 'q_old',
                                                 'flow_2018_2022': 'q_calib'})
