@@ -4,9 +4,8 @@ from pyomo.environ import *
 from pyomo.mpec import *
 import math
 import datetime
+import logging
 from future_trade.spatial_trade_model.functions_general import *
-
-data_dir = '../../OPSIS/Data/Trade_clearance_model'
 
 #### SHOCK MODEL ######
 def process_final_output(model, year_select, crop_code, SSP,scen,error, error_scale):
@@ -185,20 +184,30 @@ def get_calibrated_demand_supply_2020(crop_code, calibration_output_path, error,
     
     return demand, supply
 
-def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop_code, calibration_output_path, model_output, year_select,SSP,scen,factor_error, error, error_scale = 100, max_iter = 3000):
+def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop_code, calibration_output_path, model_output, year_select, SSP,
+                          scen, factor_error, error, error_scale = 100, max_iter = 3000, input_folder='Input', target_SS=0.3, target_SD=0.3):
     print(SSP, crop_code,year_select,'running', datetime.datetime.now(), max_iter) 
+    logging.info(f"{SSP}, {crop_code}, {year_select}, running, {datetime.datetime.now()}, {max_iter}") 
 
     ###### READ DATA #####
     #### read the calibration output #
     if year_select == 2020:
         ### base year ####
         trade_calib, prodprice_calib, conprice_calib, tc_calib, calib_constant =  read_calibration_output(calibration_output_path, crop_code)
+        print('input prod price')
+        print(pd.DataFrame([prodprice_calib]).transpose().describe())
+        print('input cons price')
+        print(pd.DataFrame([conprice_calib]).transpose().describe())
+        logging.info('input prod price')
+        logging.info(pd.DataFrame([prodprice_calib]).transpose().describe())
+        logging.info('input cons price')
+        logging.info(pd.DataFrame([conprice_calib]).transpose().describe())
         
     else: ### read input from previous calibration step
         ### read IMPACT model output ##
-        future_demand_elas = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/Input/Future_scenarios/{SSP}/IMPACT_future_demand_elas.csv')
-        future_supply_scaling = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/Input/Future_scenarios/{SSP}/supply_scn/IMPACT_future_supply_{crop_code}.csv')
-        future_demand_scaling = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/Input/Future_scenarios/{SSP}/demand_scn/IMPACT_future_demand_{crop_code}.csv')
+        future_demand_elas = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/{input_folder}/Future_scenarios/{SSP}/IMPACT_future_demand_elas.csv')
+        future_supply_scaling = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/{input_folder}/Future_scenarios/{SSP}/supply_scn/IMPACT_future_supply_{crop_code}.csv')
+        future_demand_scaling = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/{input_folder}/Future_scenarios/{SSP}/demand_scn/IMPACT_future_demand_{crop_code}.csv')
 
         ### Supply elas ##
         supply_elas = pd.DataFrame(country_info.supply_elas).reset_index()
@@ -212,11 +221,20 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
         trade_output['trade'] = np.round(np.where(trade_output['trade']<=error, error, trade_output['trade']), factor_error)
 
         ### self-sufficiency to domestic supply in 2020 ##
+        country_output_2020['dom_share_demand'] = target_SS * country_output_2020['dom_share_demand']
         supply_balance = country_output_2020[['abbreviation','dom_share_demand']].set_index(['abbreviation']).squeeze().to_dict()
         # print(country_output_2020['dom_share_demand'].describe())
 
         ### set the values to initilize the model ##
         trade_calib, prodprice_calib, conprice_calib, tc_calib, calib_constant =  read_calibration_output_future(calibration_output_path, country_output, trade_output, crop_code, factor_error, error)
+        print('input prod price')
+        print(pd.DataFrame([prodprice_calib]).transpose().describe())
+        print('input cons price')
+        print(pd.DataFrame([conprice_calib]).transpose().describe())
+        logging.info('input prod price')
+        logging.info(pd.DataFrame([prodprice_calib]).transpose().describe())
+        logging.info('input cons price')
+        logging.info(pd.DataFrame([conprice_calib]).transpose().describe())
 
         ### update the country info, demand, supply and demand elas ###
         country_info = update_country_dict(country_dict=country_info, country_output=country_output, year_select=year_select)
@@ -235,9 +253,8 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     model2.tc03 = Param(model2.i, model2.i, initialize= tc_calib,doc='transportation cost 03')
     model2.calib = Param(model2.i, model2.i, initialize= calib_constant,doc='calibration cost 03')
 
-    # !!! not needed
     # ## trade calibration ##
-    # model2.trade_calib = Param(model2.i, model2.i, initialize= trade_calib,doc='trade_calib 03')
+    model2.trade_calib = Param(model2.i, model2.i, initialize= trade_calib,doc='trade_calib 03')
 
     if year_select != 2020: 
         model2.self_supply = Param(model2.i, initialize= supply_balance,doc='self-supply 03')
@@ -250,13 +267,13 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     model2.Es = Param(model2.i,initialize=country_info.supply_elas.to_dict(),doc='supply elasticity') ### divided by 1,000
 
     ### baseline demand and supply ###
-    # if year_select==2020:
-    #     demand_2020, supply_2020 = get_calibrated_demand_supply_2020(crop_code, calibration_output_path, error, error_scale)
-    #     model2.demand03 = Param(model2.i, initialize=demand_2020, doc='demand initial')
-    #     model2.supply03 = Param(model2.i, initialize=supply_2020, doc='supply initial')
-    # else:
-    model2.demand03 = Param(model2.i,initialize=(country_info.demand  +(error/error_scale)*len(country_info.demand)).to_dict(),doc='demand initial')
-    model2.supply03 = Param(model2.i, initialize=(country_info.supply +(error/error_scale)*len(country_info.supply)).to_dict(),doc='supply initial')
+    if year_select==2020:
+        demand_2020, supply_2020 = get_calibrated_demand_supply_2020(crop_code, calibration_output_path, error, error_scale)
+        model2.demand03 = Param(model2.i, initialize=demand_2020, doc='demand initial')
+        model2.supply03 = Param(model2.i, initialize=supply_2020, doc='supply initial')
+    else:
+        model2.demand03 = Param(model2.i,initialize=(country_info.demand  +(error/error_scale)*len(country_info.demand)).to_dict(),doc='demand initial')
+        model2.supply03 = Param(model2.i, initialize=(country_info.supply +(error/error_scale)*len(country_info.supply)).to_dict(),doc='supply initial')
 
     ### set parameters ##
     model2.epsilon = Param(initialize=0.001,doc='eps')
@@ -319,12 +336,28 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     ####-------- VARIABLES --------######
     model2.prodprice3 = Var(model2.i,initialize = model2.prodprice03.extract_values(), within = PositiveReals, doc='production price 3')
     model2.conprice3 = Var(model2.i,initialize = model2.conprice03.extract_values(),  within = PositiveReals, doc='consumer price 3')
-    
+
     model2.demand = Var(model2.i,initialize=model2.demand03.extract_values(),  bounds = (len(country_info.demand)*(error/error_scale), None), doc='demand')
     model2.supply = Var(model2.i,initialize=model2.supply03.extract_values(),  bounds = (len(country_info.supply)*(error/error_scale), None), doc='supply')
 
-    model2.trade3 = Var(model2.i, model2.i, initialize= trade_calib,  bounds = (error/error_scale, None), doc='trade3')
+    def trade_init(model2, i,j):
+        if i == j:
+            if model2.trade_calib[i,j] < model2.self_supply[j] * model2.demand03[j]:
+                return error/error_scale+model2.self_supply[j] * model2.demand03[j]
+            else:
+                return model2.trade_calib[i,j]
+        else:
+            if model2.trade_calib[i,j]>target_SD* model2.demand03[j]:
+                return target_SD * model2.demand03[j]
+            else:
+                return model2.trade_calib[i,j]
     
+
+    # if year_select == 2020:
+    model2.trade3 = Var(model2.i, model2.i, initialize=trade_calib,  bounds=(error/error_scale, None), doc='trade3')
+    # else:
+    #     model2.trade3 = Var(model2.i, model2.i, initialize=trade_init,  bounds=(error/error_scale, None), doc='trade3')
+
 
     ####-------- EQUATIONS --------######
     def eq_PROD(model2, i):
@@ -345,11 +378,13 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
         else:
             return complements(1.2* model2.prodprice3[i] + model2.calib[i,j] + model2.tariff3[i,j]+ (model2.tc03[i,j]-model2.calib[i,j]) + model2.sigma * model2.trade3[i,j]  >= model2.conprice3[j], model2.trade3[i,j]>=(error/error_scale))
 
-    def eq_TRADE(model2, i,j):
+    def dom_share_rule(model2, i):
+        return model2.trade3[i,i] >= model2.self_supply[i] * model2.demand[i]
+    
+    def sd_rule(model2, i, j):
         if i == j:
-            return complements(model2.trade3[i,j]>=(model2.self_supply[j] * model2.demand[j] + error/error_scale), model2.trade3[i,j]>=(error/error_scale))
-        else:
-            return complements(model2.trade3[i,j]<=1 * model2.demand[j], model2.trade3[i,j]>=(error/error_scale))
+            return Constraint.Skip
+        return model2.trade3[i,j] <= target_SD * model2.demand[j]
 
     ### add constraints
     model2.eq_PROD = Complementarity(model2.i, rule = eq_PROD, doc='Supply >= quantity shipped')
@@ -357,8 +392,9 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     model2.eq_DPRICEDIF = Complementarity(model2.i, rule = eq_DPRICEDIF, doc='difference market demand price and local demand price')
     model2.eq_SPRICEDIF = Complementarity(model2.i, rule = eq_SPRICEDIF, doc='difference market supply price and local supply price')
     model2.eq_PRLINK2 = Complementarity(model2.i, model2.i, rule = eq_PRLINK2, doc='price chain 2')
-    # if year_select != 2020:
-    #     model2.eq_TRADE = Complementarity(model2.i, model2.i, rule = eq_TRADE, doc='trade conditions 2')
+    # if year_select>2020:
+        # model2.dom_share = Constraint(model2.i, rule=dom_share_rule)
+        # model2.supplier_diversification = Constraint(model2.i, model2.i, rule=sd_rule)
 
     ####-------- SOLVE --------######
     TransformationFactory('mpec.simple_nonlinear').apply_to(model2)
@@ -381,6 +417,8 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     output_supply =  np.sum(list(model2.supply.extract_values().values()))/1e6
     output_demand =  np.sum(list(model2.demand.extract_values().values()))/1e6
     print(year_select, initial_supply, output_supply, initial_demand, output_demand)
+    logging.info(f"{year_select}, {initial_supply}, {output_supply}, {initial_demand}, {output_demand}")
+    
     ### process output
     trade, country_output = process_final_output(model = model2, year_select= year_select, crop_code = crop_code, SSP = SSP, scen = scen, error = error, error_scale = error_scale)
 
