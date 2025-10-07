@@ -29,30 +29,28 @@ error_scale = 100 ### base = 10
 data_dir = '../../OPSIS/Data/Trade_clearance_model'
 calibration_output = f'{data_dir}/Output/Calibration/'
 model_output = f'{data_dir}/Output/Trade_allocation_future/'
-input_folder = 'Grouped_input'
+input_folder = 'Input'
 logging.basicConfig(filename=f"{model_output}model_info.txt", level=logging.INFO, format="%(message)s")
 
 ### settings ###
 max_iter = 5000
 SSP = 'SSP2'
-target_SS=0.3 # self-sufficiency in future should be at least 30% of self-sufficiency in 2020
-target_SD=0.3 # not more than 30% of demand should be met through any single exporting partner
 
 ### Scenarios ###
-scen_diet = ['BMK','FLX','FLX_hredmeat', 'FLX_hmilk', 'PSC', 'VEG', 'VGN']
-scen_cal = ['2500kcal'] #'2100kcal' # taking 2500 cal as default means that we are assuming that the present is closer to 2500kcal scenario, as will be the future
-scen_clim = ['NoCC', '2.6', '7', '8.5'] #
+scen_diet = ['BMK','FLX', 'PSC', 'VEG', 'VGN'] # 'BMK','FLX', 'FLX_hredmeat', 'FLX_hmilk', 'PSC', 'VEG', 'VGN'
+scen_cal = ['2500kcal'] # '2100kcal' # taking 2500 cal as default means that we are assuming that the present is closer to 2500kcal scenario, as will be the future
+scen_clim = ['2.6', '7'] # 'NoCC', '2.6', '7', '8.5'
+scen_lib = ['low', 'high'] # 'low', 'medium', 'high' # trade liberalization scenarios 
 
-scen_list = list(itertools.product(*[scen_diet, scen_cal, scen_clim]))
-
+scen_list = list(itertools.product(*[scen_diet, scen_cal, scen_clim, scen_lib]))
+# 10 crops, 2 clim, 2 risk
 #### run models ###
 for crop_code in [
-        'jwhea', 'jrice', 'jmaiz', 'jbarl', 'jmill', 'jsorg', 
-        'jocer', 'jcass', 'jpota', 'jyams', 'jswpt', 'jorat', 
-        'jvege', 'jbana', 'jplnt', 'jsubf', 'jtemf', 'jbean', 
-        'jchkp', 'jcowp', 'jlent', 'jpigp', 'jopul', 'jsoyb',
-        'jgrnd', 'jothr', 'jrpsd', 'jsnfl', 'jtols', 'jpalm', 
-        'jsugb', 'jsugc'
+        'jwhea', 'jrice', 'jmaiz', 'jsoyb',
+        'jbarl', 'jcass', 
+        # 'jvege', 'jbana', 
+        # 'jbean', 'jgrnd', 'jrpsd', 'jpalm', 
+        # 'jsugc'
         ]: 
     file_country = f'{data_dir}/{input_folder}/Country_data/country_information_{crop_code}.csv'
     file_bil = f'{data_dir}/{input_folder}/Trade_cost/bilateral_trade_cost_{crop_code}.csv'
@@ -83,13 +81,11 @@ for crop_code in [
                                                         error, ### error
                                                         error_scale, ### default = 100
                                                         max_iter,
-                                                        input_folder,
-                                                        target_SS,
-                                                        target_SD) ###
+                                                        input_folder) ###
 
             ## output
-            country_output.to_csv(f'{model_output}Country_output/country_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{year_select}_{crop_code}.csv', index=False)
-            trade.to_csv(f'{model_output}Trade_output/trade_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{year_select}_{crop_code}.csv', index=False)
+            country_output.to_csv(f'{model_output}Country_output/country_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{scen[3]}_{year_select}_{crop_code}.csv', index=False)
+            trade.to_csv(f'{model_output}Trade_output/trade_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{scen[3]}_{year_select}_{crop_code}.csv', index=False)
 
             ## concat ##
             country_output_all = pd.concat([country_output_all, country_output])
@@ -98,5 +94,5 @@ for crop_code in [
             print(datetime.datetime.now())
             logging.info(datetime.datetime.now())
 
-        country_output_all.to_csv(f'{model_output}Country_output/country_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{crop_code}.csv', index=False)
-        trade_all.to_csv(f'{model_output}Trade_output/trade_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{crop_code}.csv', index=False)
+        country_output_all.to_csv(f'{model_output}Country_output/country_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{scen[3]}_{crop_code}.csv', index=False)
+        trade_all.to_csv(f'{model_output}Trade_output/trade_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{scen[3]}_{crop_code}.csv', index=False)
