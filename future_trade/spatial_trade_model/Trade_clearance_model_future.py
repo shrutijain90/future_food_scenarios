@@ -33,7 +33,7 @@ input_folder = 'Input'
 logging.basicConfig(filename=f"{model_output}model_info.txt", level=logging.INFO, format="%(message)s")
 
 ### settings ###
-max_iter = 5000
+max_iter = 10000
 SSP = 'SSP2'
 
 ### Scenarios ###
@@ -46,10 +46,11 @@ scen_list = list(itertools.product(*[scen_diet, scen_cal, scen_clim, scen_lib]))
 # 10 crops, 2 clim, 2 risk
 #### run models ###
 for crop_code in [
-        'jwhea', 'jrice', 'jmaiz', 'jsoyb',
-        'jbarl', 'jcass', 
-        # 'jvege', 'jbana', 
-        # 'jbean', 'jgrnd', 'jrpsd', 'jpalm', 
+        # 'jwhea', 'jrice', 'jmaiz', 
+        'jsoyb',
+        #  'jbarl', 'jcass', 
+        # 'jvege', 'jbana', 'jbean', 
+        # 'jgrnd', 'jrpsd', 'jpalm', 
         # 'jsugc'
         ]: 
     file_country = f'{data_dir}/{input_folder}/Country_data/country_information_{crop_code}.csv'

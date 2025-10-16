@@ -34,10 +34,10 @@ logging.basicConfig(filename=f"{calibration_output}calibration_info.txt", level=
 if __name__ == '__main__':
     #### read data ###
     for crop_code in [
-        # 'jwhea', 'jrice',  'jmaiz', 'jsoyb',
-        # 'jbarl', 
-        'jcass', 
-        # 'jvege', 'jbana', 'jbean', 
+        # 'jwhea', 'jrice',  'jmaiz', 
+        'jsoyb',
+        # 'jbarl', 'jcass', 'jvege', 'jbana', 
+        # 'jbean', 
         # 'jgrnd', 'jrpsd', 'jpalm', 'jsugc',
         # 'jmill', 'jsorg', 'jocer', 'jpota', 
         # 'jyams', 'jswpt', 'jorat', 'jplnt', 
@@ -83,28 +83,21 @@ if __name__ == '__main__':
         #### run step 2 calibration ####
         logging.info('Model step 2')
         
-        if crop_code in ['jvege', 'jbean', 'jgrnd']:
+        if crop_code in ['jbean', 'jmaiz', 'jcass']:
             wtc = 1
             wp = 1
             wx = 10000
             count_max = 50
             max_iter = 3000
             scale_factor = 5
-        elif crop_code in ['jwhea', 'jrice', 'jsoyb']:
+        elif crop_code in ['jwhea', 'jrice', 'jbana', 'jgrnd', 'jsoyb']:
             wtc = 1
             wp = 1
             wx = 10000
             count_max = 50
             max_iter = 3000
             scale_factor = 1
-        elif crop_code in ['jmaiz', 'jcass']:
-            wtc = 1
-            wp = 1
-            wx = 10000
-            count_max = 50
-            max_iter = 3000
-            scale_factor = 5
-        elif crop_code in ['jbarl']:
+        elif crop_code in ['jbarl', 'jrpsd', 'jpalm', 'jsugc', 'jvege']:
             wtc = 1
             wp = 1
             wx = 10000
