@@ -15,6 +15,7 @@ def get_demand_scn(food_group, categories):
     cons['demand_q'] = cons['food_lancet_total_est'] + cons['feed_lancet_total_est'] + cons['other_fao_total'] # 'other_lancet_total_est'
     cons = cons[['region', 'kcal_scn', 'SSP_scn', 'diet_scn', 'year',
                  'food_group', 'demand_q']].rename(columns={'region': 'Abbreviation'})
+    cons.loc[cons['demand_q']==0, 'demand_q'] = 1 #to prevent nulls and infs
     cons = cons.merge(cons[cons['year']==2020].rename(columns={'demand_q': 'demand_2020'}).drop('year', axis=1))
     cons['scaling_factor_demand'] = cons['demand_q'] / cons['demand_2020']
     cons = cons.drop(['demand_q', 'demand_2020', 'food_group'], axis=1)
