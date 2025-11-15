@@ -168,6 +168,7 @@ def read_update_future_model_data(model_output, crop_code, year_select, SSP, sce
 
     ### supply elas in denominator here!!!! (as supply elas = perc change in quantity supplied wrt perc change in price)
     country_output['prodprice'] = country_output['prodprice']*(1+((1/country_output['supply_elas']) * ((country_output[f'scaling_supply_{year_select}']/country_output[f'scaling_supply_{year_select-5}'])-1)))/(country_output[f'scaling_yield_{year_select}']/country_output[f'scaling_yield_{year_select-5}'])
+    # country_output['prodprice'] = country_output['prodprice']*(1-((1/country_output['supply_elas']) * ((country_output[f'scaling_supply_{year_select}']/country_output[f'scaling_supply_{year_select-5}'])-1)))
 
     return country_output, country_output_2020
 
@@ -376,6 +377,12 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     model2.prodprice3 = Var(model2.i,initialize = model2.prodprice03.extract_values(), within = PositiveReals, doc='production price 3')
     model2.conprice3 = Var(model2.i,initialize = model2.conprice03.extract_values(),  within = PositiveReals, doc='consumer price 3')
 
+    # def demand_bounds(m, i):
+    #     return (0.8 * m.demand03[i], None)
+
+    # def supply_bounds(m, i):
+    #     return (len(country_info.supply)*(error/error_scale), 1.05 * m.supply03[i])
+
     model2.demand = Var(model2.i,initialize=model2.demand03.extract_values(),  bounds = (len(country_info.demand)*(error/error_scale), None), doc='demand')
     model2.supply = Var(model2.i,initialize=model2.supply03.extract_values(),  bounds = (len(country_info.supply)*(error/error_scale), None), doc='supply')
 
@@ -440,8 +447,7 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     opt.options['tol'] = 0.1
     opt.options['acceptable_tol'] = 0.1
     opt.options['max_iter'] = max_iter
-    opt.options['max_cpu_time'] = 60 * 20 ### 20 min##
-    # opt.options['hsllib'] = 'libcoinhsl.dylib'
+    opt.options['max_cpu_time'] = 60 * 120 ### 120 min##
 
 
     result=opt.solve(model2)
