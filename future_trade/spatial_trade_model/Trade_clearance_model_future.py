@@ -33,25 +33,37 @@ input_folder = 'Input'
 logging.basicConfig(filename=f"{model_output}model_info.txt", level=logging.INFO, format="%(message)s")
 
 ### settings ###
-max_iter = 10000
+max_iter = 50000
 SSP = 'SSP2'
 
 ### Scenarios ###
-scen_diet = ['BMK','FLX', 'PSC', 'VEG', 'VGN'] # 'BMK','FLX', 'FLX_hredmeat', 'FLX_hmilk', 'PSC', 'VEG', 'VGN'
+scen_diet = ['BMK', 'FLX', 'PSC', 'VEG', 'VGN'] # 'BMK', 'FLX', 'FLX_hredmeat', 'FLX_hmilk', 'PSC', 'VEG', 'VGN'
 scen_cal = ['2500kcal'] # '2100kcal' # taking 2500 cal as default means that we are assuming that the present is closer to 2500kcal scenario, as will be the future
 scen_clim = ['2.6', '7'] # 'NoCC', '2.6', '7', '8.5'
 scen_lib = ['low', 'high'] # 'low', 'medium', 'high' # trade liberalization scenarios 
 
 scen_list = list(itertools.product(*[scen_diet, scen_cal, scen_clim, scen_lib]))
-# 10 crops, 2 clim, 2 risk
+# 13 crops, 5 diets, 2 clim, 2 lib, 7 years
 #### run models ###
 for crop_code in [
-        # 'jwhea', 'jrice', 'jmaiz', 
-        'jsoyb',
-        #  'jbarl', 'jcass', 
-        # 'jvege', 'jbana', 'jbean', 
-        # 'jgrnd', 'jrpsd', 'jpalm', 
+        # 'jwhea', 'jrice', 'jmaiz', 'jbarl', 'jmill', 'jsorg', 'jocer', 
+        # 'jcass',  'jpota', 'jswpt', 'jorat', 
+        # 'jvege', 
+        # 'jbana', 'jplnt', 'jsubf', 'jtemf', 
+        # 'jbean', 'jchkp', 'jlent', 'jopul', 
+        # 'jsoyb',
+        # 'jgrnd', 
+        # 'jrpsd',  
+        # 'jpalm'
         # 'jsugc'
+
+        'jsnfl', 'jtols', 'jsugb'
+
+        # 'jyams', # FLX onwards
+        # 'jcowp', # PSC 7 high and then VEG, VGN
+        # 'jothr', # FLX 2.6 low 2045 onwards - iters and cputime exceeded
+        # 'jpigp'
+        
         ]: 
     file_country = f'{data_dir}/{input_folder}/Country_data/country_information_{crop_code}.csv'
     file_bil = f'{data_dir}/{input_folder}/Trade_cost/bilateral_trade_cost_{crop_code}.csv'
@@ -60,8 +72,11 @@ for crop_code in [
     for scen in scen_list:
         print(scen)
         logging.info(scen)
+        if crop_code in ['jgrnd',  'jothr', 'jrpsd', 'jsnfl', 'jtols', 'jpalm', 'jsugc', 'jsugb'] and scen[0] not in ['BMK', 'FLX']:
+            continue
+
         country_output_all, trade_all = pd.DataFrame(), pd.DataFrame()
-        for year_select in [2020, 2025, 2030, 2035, 2040, 2045, 2050]:
+        for year_select in [2020, 2025, 2030, 2035, 2040, 2045, 2050]: #2020, 2025, 2030, 2035, 2040, 2045, 2050
             print(year_select)
             logging.info(year_select)
             ### read country data ###
@@ -95,5 +110,9 @@ for crop_code in [
             print(datetime.datetime.now())
             logging.info(datetime.datetime.now())
 
+        # for year_select in [2020, 2025, 2030, 2035, 2040, 2045, 2050]:
+        #     country_output_all = pd.concat([country_output_all, pd.read_csv(f'{model_output}Country_output/country_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{scen[3]}_{year_select}_{crop_code}.csv')])
+        #     trade_all = pd.concat([trade_all, pd.read_csv(f'{model_output}Trade_output/trade_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{scen[3]}_{year_select}_{crop_code}.csv')])
+        
         country_output_all.to_csv(f'{model_output}Country_output/country_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{scen[3]}_{crop_code}.csv', index=False)
         trade_all.to_csv(f'{model_output}Trade_output/trade_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{scen[3]}_{crop_code}.csv', index=False)

@@ -34,16 +34,16 @@ logging.basicConfig(filename=f"{calibration_output}calibration_info.txt", level=
 if __name__ == '__main__':
     #### read data ###
     for crop_code in [
-        # 'jwhea', 'jrice',  'jmaiz', 
+        'jwhea', 'jrice',  'jmaiz', 'jbarl', 'jmill', 'jsorg', 'jocer', 
+        'jcass', 'jpota', 'jyams', 'jswpt', 'jorat', 
+        'jvege', 
+        'jbana', 'jplnt', 'jsubf', 'jtemf', 
+        'jbean', 'jchkp', 'jcowp', 'jlent', 'jpigp', 'jopul',
         'jsoyb',
-        # 'jbarl', 'jcass', 'jvege', 'jbana', 
-        # 'jbean', 
-        # 'jgrnd', 'jrpsd', 'jpalm', 'jsugc',
-        # 'jmill', 'jsorg', 'jocer', 'jpota', 
-        # 'jyams', 'jswpt', 'jorat', 'jplnt', 
-        # 'jsubf', 'jtemf', jchkp', 'jcowp',
-        # 'jlent', 'jpigp', 'jopul', 'jothr', 
-        # 'jsnfl', 'jtols', 'jsugb'
+        'jgrnd', 'jothr',  
+        'jrpsd', 'jsnfl', 'jtols', 
+        'jpalm', 
+        'jsugb', 'jsugc',
         ]:
 
         print(crop_code)
@@ -83,27 +83,76 @@ if __name__ == '__main__':
         #### run step 2 calibration ####
         logging.info('Model step 2')
         
-        if crop_code in ['jbean', 'jmaiz', 'jcass']:
+        if crop_code in ['jpalm', 'jsugc', 'jrpsd', 'jmaiz', 'jsnfl', 'jtols', 'jsugb']: 
             wtc = 1
             wp = 1
             wx = 10000
             count_max = 50
             max_iter = 3000
             scale_factor = 5
-        elif crop_code in ['jwhea', 'jrice', 'jbana', 'jgrnd', 'jsoyb']:
+        elif crop_code in ['jwhea', 'jrice', 'jbana', 'jsoyb', 'jtemf', 'jsorg']: 
             wtc = 1
             wp = 1
             wx = 10000
             count_max = 50
             max_iter = 3000
             scale_factor = 1
-        elif crop_code in ['jbarl', 'jrpsd', 'jpalm', 'jsugc', 'jvege']:
+        elif crop_code in ['jsubf']: 
+            wtc = 1
+            wp = 1
+            wx = 10000
+            count_max = 32
+            max_iter = 3000
+            scale_factor = 1
+        elif crop_code in ['jgrnd', 'jothr', 'jorat', 'jplnt', 'jcowp', 'jpigp']:
+            wtc = 1
+            wp = 1
+            wx = 30000
+            count_max = 50
+            max_iter = 3000
+            scale_factor = 1
+        elif crop_code in ['jyams']:
+            wtc = 1
+            wp = 1
+            wx = 30000
+            count_max = 44
+            max_iter = 3000
+            scale_factor = 1
+        elif crop_code in ['jvege', 'jmill']: 
             wtc = 1
             wp = 1
             wx = 10000
             count_max = 50
             max_iter = 3000
             scale_factor = 2
+        elif crop_code in ['jbarl']: 
+            wtc = 1
+            wp = 1
+            wx = 5000
+            count_max = 50
+            max_iter = 3000
+            scale_factor = 5
+        elif crop_code in ['jcass', 'jocer', 'jswpt']: 
+            wtc = 1
+            wp = 1
+            wx = 10000
+            count_max = 50
+            max_iter = 3000
+            scale_factor = 10
+        elif crop_code in ['jpota']:
+            wtc = 1
+            wp = 1
+            wx = 5000
+            count_max = 50
+            max_iter = 3000
+            scale_factor = 1
+        elif crop_code in ['jbean', 'jchkp', 'jlent', 'jopul']: 
+            wtc = 1
+            wp = 1
+            wx = 20000
+            count_max = 50
+            max_iter = 3000
+            scale_factor = 10
         
         model_calibration = trade_clearance_calibration(country_info=country_class,
                                                         bilateral_info=bilateral_class,
