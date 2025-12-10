@@ -243,6 +243,7 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
         ### read IMPACT model output ##
         future_demand_elas = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/{input_folder}/Future_scenarios/{SSP}/IMPACT_future_demand_elas.csv')
         future_supply_scaling = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/{input_folder}/Future_scenarios/{SSP}/supply_scn/IMPACT_future_supply_{crop_code}.csv')
+        future_supply_scaling.loc[future_supply_scaling['RCP']=='7.0', 'RCP'] = '7'
         future_demand_scaling = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/{input_folder}/Future_scenarios/{SSP}/demand_scn/IMPACT_future_demand_{crop_code}.csv')
 
         ### Supply elas ##
@@ -316,7 +317,7 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
         model2.supply03 = Param(model2.i, initialize=(country_info.supply +(error/error_scale)*len(country_info.supply)).to_dict(),doc='supply initial')
 
     ### set parameters ##
-    model2.epsilon = Param(initialize=0.001,doc='eps')
+    model2.epsilon = Param(initialize=0.0001,doc='eps')
     model2.eps = Param(initialize=eps_val,doc='eps')
     model2.sigma = Param(initialize=sigma_val,doc='sigma')
     model2.existing_trade_binary = Param(model2.i, model2.i, initialize=bilateral_info.trade_binary.to_dict(),doc='binary existing trade')
@@ -447,7 +448,7 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     opt.options['tol'] = 0.1
     opt.options['acceptable_tol'] = 0.1
     opt.options['max_iter'] = max_iter
-    opt.options['max_cpu_time'] = 60 * 120 ### 120 min##
+    opt.options['max_cpu_time'] = 60 * 240 ### 240 min##
 
 
     result=opt.solve(model2)

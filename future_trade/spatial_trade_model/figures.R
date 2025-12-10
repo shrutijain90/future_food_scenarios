@@ -8,6 +8,8 @@ library(patchwork)
 library(tidytext)
 library(grid) 
 library(stringr)
+library(ggh4x)
+library(dplyr)
 
 setwd('/Users/shrutijain/Library/CloudStorage/OneDrive-Nexus365/DPhil/OPSIS/Data/')
 
@@ -42,6 +44,8 @@ plot_faceted_supply <- function(df, crops, spread = "iqr", top_k = 8, ncol = 2) 
     slice_max(order_by = score, n = top_k, with_ties = FALSE) %>%
     ungroup()
   
+  size_breaks <- c(4, 20, 100, 500)
+  
   p <- ggplot(df, aes(x = mean, y = spread_val)) +
     geom_point(aes(fill = region, size = size_2020),
                shape = 21, colour = "grey60", stroke = 0.25, alpha = 0.9) +
@@ -49,8 +53,8 @@ plot_faceted_supply <- function(df, crops, spread = "iqr", top_k = 8, ncol = 2) 
                     size = 4, min.segment.length = 0, seed = 123,
                     box.padding = 0.3, point.padding = 0.2, max.overlaps = 60) +
     scale_fill_manual(values = palette_regions, name = "Region") +
-    scale_size(range  = c(2, 12),    
-               breaks = scales::breaks_pretty(n = 4)(range(df$size_2020, na.rm = TRUE)),
+    scale_size(range  = c(2, 12),
+               breaks = size_breaks,
                name   = "2020 supply (Mt)"
     ) +
     scale_x_continuous() +
@@ -58,7 +62,7 @@ plot_faceted_supply <- function(df, crops, spread = "iqr", top_k = 8, ncol = 2) 
     labs(x = "Mean change in supply, 2050–2020 (Mt)",
          y = paste0("Across-scenario uncertainty (", toupper(spread), ", Mt)")) +
     facet_wrap(~ food_group, scales = "free", ncol = ncol) +
-    theme_light(base_size = 17) +
+    theme_light(base_size = 15) +
     theme(panel.grid.minor = element_blank(),
           legend.position = "right",
           legend.box = "vertical",
@@ -68,11 +72,10 @@ plot_faceted_supply <- function(df, crops, spread = "iqr", top_k = 8, ncol = 2) 
   return(p)
 }
 
-p <- plot_faceted_supply(df, crops = c('Grains', 'Roots and tubers', 'Fruits and vegetables', 'Soybeans',
-                                       'Legumes, nuts and seeds', 'Oilcrops and sugar crops'))
-print(p)
-ggsave("fig_data/delta_sup.png", p, 
-       width = 14, height = 16, units = "in", dpi = 300)
+ggsave("fig_data/delta_sup.png", 
+       plot_faceted_supply(df, crops = c('Grains', 'Roots and tubers', 'Fruits and vegetables', 'Soybeans',
+                                         'Legumes, nuts and seeds', 'Oilcrops and sugar crops')), 
+       width = 13, height = 13, units = "in", dpi = 300)
 
 
 
@@ -80,20 +83,24 @@ ggsave("fig_data/delta_sup.png", p,
 
 reg_df <- readr::read_csv("fig_data/decompose.csv", show_col_types = FALSE)
 
-plot_crop_variance_stacks <- function(reg_df, crop_code = "Grains") {
+plot_crop_variance_stacks <- function(reg_df, crop_code = "Grains", vari = "supply") {
   
   d <- reg_df %>%
-    filter(food_group == crop_code,
-           y %in% c("delta_supply","delta_export")) %>%
     mutate(
       outcome = factor(y,
-                       levels = c("delta_supply","delta_export"),
-                       labels = c("Supply","Export")),
+                       levels = c("supply", "export", "demand", "import",
+                                  "delta_supply", "delta_export", "delta_demand", "delta_import"),
+                       labels = c("Supply", "Export", "Demand", "Import",
+                                  "DeltaSupply", "DeltaExport", "DeltaDemand", "DeltaImport")),
       # scale mean and variance for nicer numbers
-      mean_k = mean_delta / 1e3,      
-      var_M  = var_delta  / 1e6,
+      mean_k = mean / 1e3,      
+      var_M  = var  / 1e6,
       region = `Region Name`
     ) %>%
+    filter(
+      food_group == crop_code,
+           year %in% c(2030, 2050),
+           y == vari) %>%
     # long for stacked bars
     pivot_longer(c(diet_share, lib_share, RCP_share),
                  names_to = "lever", values_to = "share") %>%
@@ -108,7 +115,7 @@ plot_crop_variance_stacks <- function(reg_df, crop_code = "Grains") {
   
   # mean labels at the end of each total bar
   lab_df <- d %>%
-    distinct(outcome, region, var_M, mean_k)
+    distinct(year, food_group, region, var_M, mean_k)
   
   ggplot(d, aes(x = var_comp_M, y = region, fill = lever)) +
     geom_col(width = 0.8) +
@@ -117,38 +124,113 @@ plot_crop_variance_stacks <- function(reg_df, crop_code = "Grains") {
               aes(x = var_M , y = region,
                   label = paste0(" ", number(mean_k, accuracy = 1))),
               inherit.aes = FALSE, hjust = 0, size = 4) +
-    facet_wrap(~ outcome, ncol = 1) +
+    facet_wrap(~ year, ncol = 1, scales = "free") +
     scale_y_reordered() +
     scale_x_continuous(labels = scales::label_number(big.mark = ","),
-                       expand  = expansion(mult = c(0, 0.15))) +  # room for μ labels
+                       expand  = expansion(mult = c(0, 0.25))) +  # room for μ labels
     scale_fill_manual(values = c("Diet"="#0072B2", "Liberalization"="#009E73", "RCP"="#E69F00"), 
                       name = NULL) +
     labs(
       subtitle = crop_code,
       x = "Variance across scenarios (Mt²)", y = NULL, fill = "Lever"
     ) +
-    theme_minimal(base_size = 16) +
+    theme_minimal(base_size = 14) +
     theme(
       legend.position = "bottom",
       strip.text = element_text(face = "bold"),
       panel.grid.major.y = element_blank()
-    )
+    ) 
 }
 
-p <- plot_crop_variance_stacks(reg_df, crop_code = "Grains")  
-print(p)
-ggsave("fig_data/decompose_grains.png", plot_crop_variance_stacks(reg_df, crop_code = "Grains"), 
-       width = 8, height = 8, dpi = 300)
-ggsave("fig_data/decompose_roots.png", plot_crop_variance_stacks(reg_df, crop_code = "Roots and tubers"), 
-       width = 8, height = 8, dpi = 300)
-ggsave("fig_data/decompose_fnv.png", plot_crop_variance_stacks(reg_df, crop_code = "Fruits and vegetables"), 
-       width = 8, height = 8, dpi = 300)
-ggsave("fig_data/decompose_soybean.png", plot_crop_variance_stacks(reg_df, crop_code = "Soybeans"), 
-       width = 8, height = 8, dpi = 300)
-ggsave("fig_data/decompose_legumes.png", plot_crop_variance_stacks(reg_df, crop_code = "Legumes, nuts and seeds"), 
-       width = 8, height = 8, dpi = 300)
-ggsave("fig_data/decompose_oilsug.png", plot_crop_variance_stacks(reg_df, crop_code = "Oilcrops and sugar crops"), 
-       width = 8, height = 8, dpi = 300)
+
+# combine plots
+crop_order <- c("Grains",
+                "Roots and tubers",
+                "Fruits and vegetables",
+                "Soybeans",
+                "Legumes, nuts and seeds",
+                "Oilcrops and sugar crops")
+
+# helpers
+hide_x_title <- function(p) p + theme(axis.title.x = element_blank())
+show_x_title <- function(p) p + theme(axis.title.x = element_text())
+
+hide_y <- function(p) p + theme(axis.title.y = element_blank(),
+                                axis.text.y  = element_blank(),
+                                axis.ticks.y = element_blank())
+gap <- 15 
+
+##### supply
+plots <- lapply(crop_order, \(g) plot_crop_variance_stacks(reg_df, crop_code = g, vari = "supply"))
+plots <- lapply(plots, \(p) p + theme(plot.margin = margin(gap, gap, gap, gap)))
+
+# layout bookkeeping
+n     <- length(plots)
+ncol  <- 3
+nrow  <- ceiling(n / ncol)
+
+# indices by rows (row-major fill)
+row_indices <- split(seq_len(n), ceiling(seq_len(n) / ncol))
+
+# choose which subplot keeps the x-axis *title*: center of the last row
+last_row     <- row_indices[[length(row_indices)]]
+keep_xtitle  <- last_row[ceiling(length(last_row) / 2)]
+
+# leftmost plot in each row keeps the y-axis labels
+leftmost_per_row <- vapply(row_indices, function(v) v[1], integer(1))
+
+# apply visibility rules
+plots_ax <- lapply(seq_along(plots), function(i) {
+  p <- plots[[i]]
+  # x: keep tick labels everywhere; only hide/show the title
+  p <- if (i == keep_xtitle) show_x_title(p) else hide_x_title(p)
+  # y: only leftmost in each row shows labels/ticks
+  if (!(i %in% leftmost_per_row)) p <- hide_y(p)
+  p
+})
+
+# assemble and collect legend
+final_plot <- wrap_plots(plots_ax, ncol = ncol, guides = "collect") &
+  theme(legend.position = "bottom")
+
+final_plot
+ggsave("fig_data/decompose_supply.png", final_plot, width = 14, height = 11, dpi = 300)
+
+##### exports
+plots <- lapply(crop_order, \(g) plot_crop_variance_stacks(reg_df, crop_code = g, vari = "export"))
+plots <- lapply(plots, \(p) p + theme(plot.margin = margin(gap, gap, gap, gap)))
+
+# layout bookkeeping
+n     <- length(plots)
+ncol  <- 3
+nrow  <- ceiling(n / ncol)
+
+# indices by rows (row-major fill)
+row_indices <- split(seq_len(n), ceiling(seq_len(n) / ncol))
+
+# choose which subplot keeps the x-axis *title*: center of the last row
+last_row     <- row_indices[[length(row_indices)]]
+keep_xtitle  <- last_row[ceiling(length(last_row) / 2)]
+
+# leftmost plot in each row keeps the y-axis labels
+leftmost_per_row <- vapply(row_indices, function(v) v[1], integer(1))
+
+# apply visibility rules
+plots_ax <- lapply(seq_along(plots), function(i) {
+  p <- plots[[i]]
+  # x: keep tick labels everywhere; only hide/show the title
+  p <- if (i == keep_xtitle) show_x_title(p) else hide_x_title(p)
+  # y: only leftmost in each row shows labels/ticks
+  if (!(i %in% leftmost_per_row)) p <- hide_y(p)
+  p
+})
+
+# assemble and collect legend
+final_plot <- wrap_plots(plots_ax, ncol = ncol, guides = "collect") &
+  theme(legend.position = "bottom")
+
+final_plot
+ggsave("fig_data/decompose_export.png", final_plot, width = 14, height = 11, dpi = 300)
 
 
 ### resilience ###
@@ -171,11 +253,13 @@ plot_tradeoff_structured <- function(df, crops = c('Grains', 'Roots and tubers',
                                                    'Legumes, nuts and seeds', 'Oilcrops and sugar crops'),
                                      diet_levels = c("BMK","FLX","PSC","VEG","VGN","2020"),
                                      lib_levels  = c("low","high","2020"),
-                                     rcp_levels  = c("2.6","7")) {
+                                     rcp_keep  = "2.6") {
   
   diet_pal <- c(BMK="#CC3311", FLX="#EE7733", PSC="#0077BB", VEG="#33BBEE", VGN="#117733", `2020`="black")
   
-  d <- prep_structured(df) %>% filter(food_group %in% crops)
+  d <- prep_structured(df) %>% 
+    filter(food_group %in% crops,
+           RCP %in% c("2020", rcp_keep))
   
   # Baseline points (one per crop)
   base <- d %>% filter(year2020) %>%
@@ -189,19 +273,16 @@ plot_tradeoff_structured <- function(df, crops = c('Grains', 'Roots and tubers',
     mutate(
       diet_scn = factor(diet_scn, levels = diet_levels),
       lib_scn = factor(lib_scn, levels = lib_levels),
-      RCP  = factor(RCP, levels = rcp_levels, 
-                        labels = c("RCP 2.6","RCP 7.0")),
       food_group = factor(food_group, levels = crops),
     )
   
   ggplot(d_plot, aes(AID_pct, HHI, colour = diet_scn, shape = lib_scn)) +
-    geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey70") +
+    geom_hline(yintercept = 0.25, linetype = "dashed", colour = "grey70") +
     geom_vline(xintercept = 50,  linetype = "dashed", colour = "grey70") +
     geom_point(size = 3, alpha = 0.9) +
     geom_point(data = base, aes(AID_pct, HHI, alpha = baseline_key), inherit.aes = FALSE,
                shape = 4, size = 4, stroke = 1.1, colour = "black") +
-    facet_grid(rows = vars(food_group), cols = vars(RCP), scales = "free_y",
-               labeller = labeller(food_group = label_wrap_gen(width = 16))) +
+    facet_wrap(~ food_group, ncol = 2, scales = "free") +
     scale_x_continuous(limits = c(0, 100), labels = label_number(accuracy = 1, suffix = "%")) +
     scale_y_continuous(limits = c(0, 1),   labels = label_number(accuracy = 0.01)) +
     scale_colour_manual(values = diet_pal, breaks = c("BMK","FLX","PSC","VEG","VGN")) +
@@ -232,129 +313,129 @@ plot_tradeoff_structured <- function(df, crops = c('Grains', 'Roots and tubers',
 p <- plot_tradeoff_structured(agg_df)
 print(p)
 ggsave("fig_data/hhi_sum.png", p, 
-       width = 12, height = 10, dpi = 300)
+       width = 10, height = 8, dpi = 300)
 
 
-plot_tradeoff_structured <- function(df, crops = c('Grains', 'Roots and tubers', 'Fruits and vegetables', 'Soybeans',
-                                                   'Legumes, nuts and seeds', 'Oilcrops and sugar crops'),
-                                     diet_levels = c("BMK","FLX","PSC","VEG","VGN","2020"),
-                                     lib_levels  = c("low","high","2020"),
-                                     rcp_levels  = c("2.6","7")) {
+agg_df_reg <- readr::read_csv("fig_data/hhi_sum_reg.csv", show_col_types = FALSE)
+
+prep_structured <- function(df) {
+  df %>%
+    mutate(
+      year2020 = scen == "2020" | diet_scn == "2020",
+      AID_pct  = (if (max(df$import_dep, na.rm = TRUE) <= 1.5) 100 else 1) * import_dep,
+      HHI      = hhi,
+      diet_scn = as.character(diet_scn),
+      lib_scn  = as.character(lib_scn),
+      RCP      = as.character(RCP)
+    )
+}
+
+plot_tradeoff_structured <- function(
+    df,
+    crops        = c('Grains', 'Roots and tubers', 'Fruits and vegetables', 'Soybeans',
+                     'Legumes, nuts and seeds', 'Oilcrops and sugar crops'),
+    diet_levels  = c("BMK","FLX","PSC","VEG","VGN","2020"),
+    lib_levels   = c("low","high","2020"),
+    rcp_keep     = "2.6",   # 
+    region_levels = c("Africa","Asia","Europe","Latin America and the Caribbean",
+                      "Oceania","Northern America")  
+) {
   
-  d <- prep_structured(df) %>% dplyr::filter(food_group %in% crops) 
+  diet_pal <- c(BMK="#CC3311", FLX="#EE7733", PSC="#0077BB",
+                VEG="#33BBEE", VGN="#117733", `2020`="black")
   
-  # baseline risk per crop (2020), replicated across RCP facets
+  d <- prep_structured(df) %>% 
+    filter(food_group %in% crops,
+           RCP %in% c("2020", rcp_keep)) %>%    
+    mutate(region = `Region Name`)
+  
+  # baseline, per food_group and region 
   base <- d %>%
-    dplyr::filter(year2020) %>%
-    dplyr::group_by(food_group) %>%
-    dplyr::summarise(risk = dplyr::first(risk), .groups = "drop") %>%
-    dplyr::mutate(
+    filter(year2020) %>%
+    group_by(food_group, region) %>%        
+    summarise(AID_pct = first(AID_pct),
+              HHI     = first(HHI),
+              .groups = "drop") %>%
+    mutate(
       food_group = factor(food_group, levels = crops),
-    ) 
-  
-  # plotting data (non-baseline) with fixed orders and facet headers
-  d_plot <- d %>%
-    dplyr::filter(!year2020) %>%
-    dplyr::mutate(
-      diet_scn    = factor(diet_scn, levels = diet_levels),
-      lib_scn     = factor(lib_scn,  levels = lib_levels),
-      food_group = factor(food_group, levels = crops),
-      RCP         = factor(RCP, levels = rcp_levels,
-                           labels = c("RCP 2.6","RCP 7.0"))
+      region     = factor(region, levels = region_levels),
+      baseline_key = "2020 baseline"
     )
   
-  pos <- position_dodge(width = 0.70)
+  # plotting data (non-baseline)
+  d_plot <- d %>%
+    filter(!year2020) %>%
+    mutate(
+      diet_scn   = factor(diet_scn, levels = diet_levels),
+      lib_scn    = factor(lib_scn, levels = lib_levels),
+      food_group = factor(food_group, levels = crops),
+      region     = factor(region, levels = region_levels)
+    )
   
-  ggplot(d_plot, aes(x = diet_scn, y = risk, fill = lib_scn)) +
-    # dashed 2020 baseline in every facet
-    geom_hline(data = base, aes(yintercept = risk), inherit.aes = FALSE,
-               colour = "grey60", linetype = "dashed") +
-    geom_col(position = pos, width = 0.62) +
-    facet_grid(rows = vars(food_group), cols = vars(RCP),
-               labeller = labeller(food_group = label_wrap_gen(width = 16))) +
-    scale_y_continuous(labels = scales::label_percent(accuracy = 1),
-                       expand  = expansion(mult = c(0, 0.08))) +
-    labs(x = "Diet scenario", y = "Demand at risk", fill = "Liberalization") +
-    theme_minimal(base_size = 12) +
+  ggplot(d_plot, aes(AID_pct, HHI, colour = diet_scn, shape = lib_scn)) +
+    geom_hline(yintercept = 0.25, linetype = "dashed", colour = "grey70") +
+    geom_vline(xintercept = 50,  linetype = "dashed", colour = "grey70") +
+    geom_point(size = 3, alpha = 0.9) +
+    geom_point(
+      data = base,
+      aes(AID_pct, HHI, alpha = baseline_key),
+      inherit.aes = FALSE,
+      shape = 4, size = 4, stroke = 1.1, colour = "black"
+    ) +
+    # facet by food_group (rows) and region (columns)
+  facet_grid(
+    rows = vars(food_group),
+    cols = vars(region),
+    scales = "free_y",
+    labeller = labeller(food_group = label_wrap_gen(width = 16),
+                        region = label_wrap_gen(width = 20))
+  ) +
+    scale_x_continuous(
+      limits = c(0, 100),
+      labels = label_number(accuracy = 1, suffix = "%")
+    ) +
+    scale_y_continuous(
+      limits = c(0, 1),
+      labels = label_number(accuracy = 0.01)
+    ) +
+    scale_colour_manual(
+      values = diet_pal,
+      breaks = c("BMK","FLX","PSC","VEG","VGN")
+    ) +
+    scale_shape_manual(
+      values = c(low = 16, high = 17, `2020` = 4),
+      breaks = c("low","high")
+    ) +
+    scale_alpha_manual(
+      name   = "",
+      values = c("2020 baseline" = 1),
+      breaks = "2020 baseline",
+      guide  = guide_legend(
+        override.aes = list(shape = 4, colour = "black", size = 4)
+      )
+    ) +
+    guides(
+      colour = guide_legend(order = 1),
+      shape  = guide_legend(order = 2),
+      alpha  = guide_legend(order = 3)
+    ) +
+    labs(
+      x = "Import dependence (% of demand)",
+      y = "HHI over Imports, weighted",
+      colour = "Diet",
+      shape  = "Liberalization"
+    ) +
+    theme_minimal(base_size = 16) +
     theme(
       panel.grid.minor = element_blank(),
-      strip.text = element_text(face = "bold"),
-      panel.spacing.x = grid::unit(10, "mm"),
-      panel.spacing.y = grid::unit(6,  "mm"),
-      plot.margin     = margin(10, 14, 10, 10)
+      strip.text       = element_text(face = "bold"),
+      panel.spacing.x  = unit(10, "mm"),
+      panel.spacing.y  = unit(6,  "mm"),
+      plot.margin      = margin(10, 14, 10, 10)
     )
 }
 
-p <- plot_tradeoff_structured(agg_df)
+p <- plot_tradeoff_structured(agg_df_reg)
 print(p)
-ggsave("fig_data/hhi_risk.png", p, 
-       width = 10, height = 9, dpi = 300)
-
-
-
-country_df <- readr::read_csv("fig_data/hhi.csv", show_col_types = FALSE)
-
-plot_country_arrows <- function(df_ctry,
-                                crops = c('Grains', 'Roots and tubers', 'Fruits and vegetables', 'Soybeans',
-                                          'Legumes, nuts and seeds', 'Oilcrops and sugar crops'),
-                                scen_choice = "2050, BMK, high, 7.0",
-                                top_mass = 0.80,   # keep countries covering X% of imports (per crop)
-                                x_thr = 50, y_thr = 0.5) {
-  
-  d <- df_ctry %>%
-    filter(food_group %in% crops) %>%
-    select(food_group, abbreviation, scen, perc_imp, hhi, import) %>%
-    drop_na(perc_imp, hhi, import) %>% 
-    dplyr::mutate(import = import / 1e3)
-  
-  # put perc_imp on 0–100 if it’s 0–1
-  if (max(d$perc_imp, na.rm = TRUE) <= 1.5) d$perc_imp <- d$perc_imp * 100
-  
-  base <- d %>% filter(scen == "2020") %>%
-    rename(x0 = perc_imp, y0 = hhi, import0 = import)
-  
-  sc   <- d %>% filter(scen == scen_choice) %>%
-    rename(x1 = perc_imp, y1 = hhi, import1 = import)
-  
-  dd <- inner_join(base, sc, by = c("food_group","abbreviation")) %>%
-    group_by(food_group) %>%
-    arrange(desc(import1), .by_group = TRUE) %>%
-    mutate(cum = cumsum(import1)/sum(import1, na.rm=TRUE)) %>%
-    filter(cum <= top_mass) %>%
-    ungroup() %>%
-    mutate(
-      risk0 = (x0/100)*y0, risk1 = (x1/100)*y1,
-      drisk = risk1 - risk0,
-      food_group = factor(food_group, levels = crops)
-    )
-  
-  ggplot(dd) +
-    geom_hline(yintercept = y_thr, linetype = "dashed", colour = "grey70") +
-    geom_vline(xintercept = x_thr, linetype = "dashed", colour = "grey70") +
-    geom_segment(aes(x = x0, y = y0, xend = x1, yend = y1, colour = drisk),
-                 arrow = arrow(length = unit(2.5, "mm"), type = "closed"),
-                 linewidth = 0.5, alpha = 0.9) +
-    geom_point(aes(x = x1, y = y1, size = import1), shape = 21,
-               fill = "white", colour = "black", stroke = 0.4) +
-    ggrepel::geom_text_repel(aes(x = x1, y = y1, label = abbreviation),
-                             size = 3, max.overlaps = 12, min.segment.length = 0) +
-    facet_wrap(~ food_group, ncol = 2,
-               labeller = labeller(food_group = label_wrap_gen(width = 16))) +
-    scale_colour_gradient2(low = "#2c7bb6", mid = "grey50", high = "#d7191c",
-                           midpoint = 0, name = "Δ (imp%×HHI)") +
-    scale_size_continuous(range = c(1.8, 7), name = "2050 Imports (Mt)") +
-    scale_x_continuous(limits = c(0,100), labels = label_number(suffix = "%")) +
-    scale_y_continuous(limits = c(0,1),   labels = label_number(accuracy = 0.1)) +
-    labs(title = paste("2020 →", scen_choice),
-         x = "Import dependence (% of country demand)", y = "HHI over country imports") +
-    theme_minimal(base_size = 12) +
-    theme(panel.grid.minor = element_blank(),
-          strip.text = element_text(face = "bold"),
-          panel.spacing.y = unit(6, "mm"))
-}
-
-
-p <- plot_country_arrows(country_df, scen_choice="2050, BMK, low, 7.0", top_mass=0.8)
-print(p)
-ggsave("fig_data/hhi_country.png", p, 
-       width = 10, height = 7, dpi = 300)
+ggsave("fig_data/hhi_sum_reg.png", p, 
+       width = 18, height = 12, dpi = 300)

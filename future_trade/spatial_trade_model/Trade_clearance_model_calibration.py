@@ -101,8 +101,8 @@ if __name__ == '__main__':
             wtc = 1
             wp = 1
             wx = 10000
-            count_max = 32
-            max_iter = 3000
+            count_max = 30
+            max_iter = 5000
             scale_factor = 1
         elif crop_code in ['jgrnd', 'jothr', 'jorat', 'jplnt', 'jcowp', 'jpigp']:
             wtc = 1
@@ -114,8 +114,8 @@ if __name__ == '__main__':
         elif crop_code in ['jyams']:
             wtc = 1
             wp = 1
-            wx = 30000
-            count_max = 44
+            wx = 20000
+            count_max = 50
             max_iter = 3000
             scale_factor = 1
         elif crop_code in ['jvege', 'jmill']: 
