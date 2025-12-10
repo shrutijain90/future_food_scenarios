@@ -19,6 +19,13 @@ def get_demand_scn(food_group, categories):
     cons = cons.merge(cons[cons['year']==2020].rename(columns={'demand_q': 'demand_2020'}).drop('year', axis=1))
     cons['scaling_factor_demand'] = cons['demand_q'] / cons['demand_2020']
     cons = cons.drop(['demand_q', 'demand_2020', 'food_group'], axis=1)
+
+    # to prevent the demand for some commodities (nuts_seeds and oil_veg) in some countries (LSO, TKM; BTN, COD, PNG, SOM) from exploding
+    cons = cons.merge(cons[cons['scaling_factor_demand']<2000].groupby(['kcal_scn', 'diet_scn', 'year'])[[
+        'scaling_factor_demand']].max().reset_index().rename(columns={'scaling_factor_demand': 'scaling_factor_demand_max'}))
+    cons.head()
+    cons.loc[cons['scaling_factor_demand']>2000, 'scaling_factor_demand'] = cons.loc[cons['scaling_factor_demand']>2000]['scaling_factor_demand_max']
+    cons = cons.drop('scaling_factor_demand_max', axis=1)
     
     for category in categories:
         cons['IMPACT_code'] = category
