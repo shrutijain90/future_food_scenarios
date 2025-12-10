@@ -317,7 +317,7 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
         model2.supply03 = Param(model2.i, initialize=(country_info.supply +(error/error_scale)*len(country_info.supply)).to_dict(),doc='supply initial')
 
     ### set parameters ##
-    model2.epsilon = Param(initialize=0.0001,doc='eps')
+    model2.epsilon = Param(initialize=0.001,doc='eps')
     model2.eps = Param(initialize=eps_val,doc='eps')
     model2.sigma = Param(initialize=sigma_val,doc='sigma')
     model2.existing_trade_binary = Param(model2.i, model2.i, initialize=bilateral_info.trade_binary.to_dict(),doc='binary existing trade')
