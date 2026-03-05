@@ -378,12 +378,6 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     model2.prodprice3 = Var(model2.i,initialize = model2.prodprice03.extract_values(), within = PositiveReals, doc='production price 3')
     model2.conprice3 = Var(model2.i,initialize = model2.conprice03.extract_values(),  within = PositiveReals, doc='consumer price 3')
 
-    # def demand_bounds(m, i):
-    #     return (0.8 * m.demand03[i], None)
-
-    # def supply_bounds(m, i):
-    #     return (len(country_info.supply)*(error/error_scale), 1.05 * m.supply03[i])
-
     model2.demand = Var(model2.i,initialize=model2.demand03.extract_values(),  bounds = (len(country_info.demand)*(error/error_scale), None), doc='demand')
     model2.supply = Var(model2.i,initialize=model2.supply03.extract_values(),  bounds = (len(country_info.supply)*(error/error_scale), None), doc='supply')
 
@@ -437,6 +431,15 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     model2.eq_DPRICEDIF = Complementarity(model2.i, rule = eq_DPRICEDIF, doc='difference market demand price and local demand price')
     model2.eq_SPRICEDIF = Complementarity(model2.i, rule = eq_SPRICEDIF, doc='difference market supply price and local supply price')
     model2.eq_PRLINK2 = Complementarity(model2.i, model2.i, rule = eq_PRLINK2, doc='price chain 2')
+
+    # including this to prevent exploding vegetable imports for china in the low trade scenarios, which don't seem plausible 
+    # the exploding imports were quite a deviation from all other patterns of results for all crops/countries/scenarios
+    if crop_code=='jvege' and scen[3]=='low':
+        def china_import_cap(model2, i):
+            if i == 'CHM':
+                return sum(model2.trade3[j, i] for j in model2.i if j != i) <= 0.05 * model2.demand03[i] # basing the cap on the present, and on what happens in the high scenarios
+            return Constraint.Skip 
+        model2.china_import_cap = Constraint(model2.i, rule=china_import_cap)
 
     ####-------- SOLVE --------######
     TransformationFactory('mpec.simple_nonlinear').apply_to(model2)
