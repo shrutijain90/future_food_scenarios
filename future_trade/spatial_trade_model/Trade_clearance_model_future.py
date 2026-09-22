@@ -19,7 +19,8 @@ from pathos.multiprocessing import ProcessPool, cpu_count
 
 ###### additional information,  ####
 sigma_val = 10 ### base = 10,
-eps_val = 7 ### base = 7
+eps_val = 3 ### base = 7
+epsilon = 0.001
 
 factor_error = 3 ### base = 3
 error = 1*10**(-1*factor_error)
@@ -40,7 +41,7 @@ SSP = 'SSP2'
 scen_diet = ['BMK', 'FLX', 'PSC', 'VEG', 'VGN'] # 'BMK', 'FLX', 'FLX_hredmeat', 'FLX_hmilk', 'PSC', 'VEG', 'VGN'
 scen_cal = ['2500kcal'] # '2100kcal' # taking 2500 cal as default means that we are assuming that the present is closer to 2500kcal scenario, as will be the future
 scen_clim = ['2.6', '7'] # 'NoCC', '2.6', '7', '8.5'
-scen_lib = ['low', 'high'] # 'low', 'medium', 'high' # trade liberalization scenarios 
+scen_lib = ['low', 'high'] # 'low', 'high' # trade scenarios 
 
 scen_list = list(itertools.product(*[scen_diet, scen_cal, scen_clim, scen_lib]))
 
@@ -50,24 +51,21 @@ for crop_code in [
         'jcass', 'jpota', 'jyams', 'jswpt', 'jorat', 
         'jvege', 
         'jbana', 'jplnt', 'jsubf', 'jtemf', 
-        'jbean', 'jchkp', 'jcowp', 'jlent', 'jpigp', 'jopul', 
+        'jbean', 'jchkp', 'jcowp', 'jlent', 'jpigp', 'jopul',
         'jsoyb',
-        'jgrnd', 'jothr', 
-        'jrpsd', 'jsnfl', 'jtols',
+        'jgrnd', 'jothr',  
+        'jrpsd', 'jsnfl', 'jtols', 
         'jpalm', 
-        'jsugc', 'jsugb'
+        'jsugb', 'jsugc', 
         ]: 
     file_country = f'{data_dir}/{input_folder}/Country_data/country_information_{crop_code}.csv'
     file_bil = f'{data_dir}/{input_folder}/Trade_cost/bilateral_trade_cost_{crop_code}.csv'
     logging.info(crop_code)
 
-    if crop_code in ['jyams', 'jcowp', 'jlent', 'jpigp', 'jcowp', 'jothr']:
+    if crop_code in ['jyams', 'jchkp', 'jcowp', 'jlent', 'jpigp', 'jopul', 'jothr']: 
         error_scale = 1000
-    if crop_code == 'jcowp':
-        max_iter = 5000 # sometimes, epsilon needs to be changed from 0.001 to 0.0001 in fuctions_future.py
-    if crop_code == 'jothr':
-        max_iter = 35000 # sometimes, epsilon needs to be changed from 0.001 to 0.0001 in fuctions_future.py
-
+        epsilon = 0.0001
+    
     for scen in scen_list:
 
         print(scen)
@@ -87,6 +85,7 @@ for crop_code in [
                                                         bilateral_class,
                                                         eps_val,
                                                         sigma_val,
+                                                        epsilon,
                                                         crop_code,
                                                         calibration_output,
                                                         model_output,

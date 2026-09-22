@@ -210,28 +210,40 @@ def calculate_historical_trade_shares(model_output, crop_code, SSP, scen, target
     
     return relative_sd_bounds
 
+def calculate_historical_import_shares(model_output, crop_code, SSP, scen, target_ID):
+    """
+    2020 share of each importer's total imports, floored at target_ID.
+    Mirrors calculate_historical_trade_shares, but on imports not demand.
+    """
+    trade_2020 = pd.read_csv(f'{model_output}Trade_output/trade_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{scen[3]}_2020_{crop_code}.csv')
+    imp = trade_2020[trade_2020['from_abbreviation'] != trade_2020['to_abbreviation']].copy()
+    tot = imp.groupby('to_abbreviation')['trade'].sum().rename('total_imports')
+    imp = imp.merge(tot, on='to_abbreviation', how='left')
+    imp['import_share'] = (imp.trade / imp.total_imports).fillna(0)
+    imp.loc[imp.import_share < target_ID, 'import_share'] = target_ID
+    return imp.set_index(['from_abbreviation','to_abbreviation'])['import_share'].to_dict()
+
 def get_liberalization_targets(lib_scenario):
     """
     Get self-sufficiency and single-dominant partner targets based on trade liberalization scenario.
     """
     if lib_scenario == 'low':
         target_SS=0.7 # self-sufficiency in future should be at least 70% of self-sufficiency in 2020
-        target_SD=0.3 # not more than 30% of demand should be met through any single exporting partner if a link doesnt exist in 2020, else imports from partner should be less than current share)
-    elif lib_scenario == 'medium':
-        target_SS=0.5
-        target_SD=0.5
+        target_SD=0.3 # not more than 30% of demand (or current share, whichever is larger) should be met through any single exporting partner
+        target_ID = 0.5 # not more thant 50% of imports  (or current share, whichever is larger)should come from any single exporting partner 
     else:
         target_SS=0.3
         target_SD=0.7
+        target_ID = 0.8
 
-    return target_SS, target_SD
+    return target_SS, target_SD, target_ID
 
-def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop_code, calibration_output_path, model_output, year_select, SSP,
+def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, epsilon, crop_code, calibration_output_path, model_output, year_select, SSP,
                           scen, factor_error, error, error_scale = 100, max_iter = 3000, input_folder='Input'):
     print(SSP, crop_code,year_select,'running', datetime.datetime.now(), max_iter) 
     logging.info(f"{SSP}, {crop_code}, {year_select}, running, {datetime.datetime.now()}, {max_iter}") 
 
-    target_SS, target_SD = get_liberalization_targets(scen[3]) ### get the targets based on trade liberalization scenario
+    target_SS, target_SD, target_ID = get_liberalization_targets(scen[3]) ### get the targets based on trade liberalization scenario
 
     ###### READ DATA #####
     #### read the calibration output #
@@ -264,6 +276,8 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
 
         # Calculate relative SD bounds based on historical trade shares
         relative_sd_bounds = calculate_historical_trade_shares(model_output, crop_code, SSP, scen, target_SD)
+        relative_id_bounds = calculate_historical_import_shares(model_output, crop_code, SSP, scen, target_ID)
+        imports_ref = country_output[['abbreviation','import']].set_index('abbreviation')['import'].fillna(0).to_dict()
 
         ### set the values to initilize the model ##
         trade_calib, prodprice_calib, conprice_calib, tc_calib, calib_constant =  read_calibration_output_future(calibration_output_path, country_output, trade_output, crop_code, factor_error, error)
@@ -299,6 +313,7 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     if year_select != 2020: 
         model2.self_supply = Param(model2.i, initialize= supply_balance,doc='self-supply 03')
         model2.relative_sd_bound = Param(model2.i, model2.i, initialize=relative_sd_bounds, doc='relative supplier diversification bounds')
+        model2.relative_id_bound = Param(model2.i, model2.i, initialize=relative_id_bounds, default=target_ID, doc='relative importer diversification bounds')
 
     ### tariffs
     model2.adv = Param(model2.i, model2.i, initialize=bilateral_info.adv.to_dict(),doc='tariff')
@@ -315,9 +330,10 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     else:
         model2.demand03 = Param(model2.i,initialize=(country_info.demand  +(error/error_scale)*len(country_info.demand)).to_dict(),doc='demand initial')
         model2.supply03 = Param(model2.i, initialize=(country_info.supply +(error/error_scale)*len(country_info.supply)).to_dict(),doc='supply initial')
+        model2.imports_ref = Param(model2.i, initialize=imports_ref, default=0.0, doc='reference import volume')
 
     ### set parameters ##
-    model2.epsilon = Param(initialize=0.001,doc='eps')
+    model2.epsilon = Param(initialize=epsilon,doc='eps')
     model2.eps = Param(initialize=eps_val,doc='eps')
     model2.sigma = Param(initialize=sigma_val,doc='sigma')
     model2.existing_trade_binary = Param(model2.i, model2.i, initialize=bilateral_info.trade_binary.to_dict(),doc='binary existing trade')
@@ -381,6 +397,17 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     model2.demand = Var(model2.i,initialize=model2.demand03.extract_values(),  bounds = (len(country_info.demand)*(error/error_scale), None), doc='demand')
     model2.supply = Var(model2.i,initialize=model2.supply03.extract_values(),  bounds = (len(country_info.supply)*(error/error_scale), None), doc='supply')
 
+
+    def import_envelope(model2, j):
+        """
+        Max plausible total import volume for j this period.
+        """
+        ref   = value(model2.imports_ref[j]) 
+        need  = value(model2.demand03[j]) - value(model2.supply03[j])
+        floor = 0.02 * value(model2.demand03[j]) 
+        return max(ref, need, floor)
+
+
     def trade_init(model2, i,j):
         if i == j:
             if model2.trade_calib[i,j] < model2.self_supply[j] * model2.demand03[j]:
@@ -388,17 +415,19 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
             else:
                 return model2.trade_calib[i,j]
         else:
-            if model2.trade_calib[i,j] > model2.relative_sd_bound[i,j] * model2.demand03[j]:
-                return model2.relative_sd_bound[i,j] * model2.demand03[j]
-            else:
-                return model2.trade_calib[i,j]
+            ub_demand = value(model2.relative_sd_bound[i,j]) * value(model2.demand03[j])
+            ub_imports = value(model2.relative_id_bound[i,j]) * import_envelope(model2, j) # value(model2.imports_ref[j])
+            ub_imports = max(ub_imports, 10 * error / error_scale)
+            return min(value(model2.trade_calib[i,j]), ub_demand, ub_imports)
             
     def trade_bounds(model2, i,j):
         if i == j:
             return (error/error_scale+model2.self_supply[j] * model2.demand03[j], None)
         else:
-            return (error/error_scale, model2.relative_sd_bound[i,j] * model2.demand03[j])
-    
+            ub_demand = value(model2.relative_sd_bound[i,j]) * value(model2.demand03[j])
+            ub_imports = value(model2.relative_id_bound[i,j]) * import_envelope(model2, j) # value(model2.imports_ref[j])
+            ub_imports = max(ub_imports, 10 * error / error_scale)
+            return (error/error_scale, min(ub_demand, ub_imports))
     
     if year_select == 2020:
         model2.trade3 = Var(model2.i, model2.i, initialize=trade_calib,  bounds=(error/error_scale, None), doc='trade3')
@@ -431,16 +460,7 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     model2.eq_DPRICEDIF = Complementarity(model2.i, rule = eq_DPRICEDIF, doc='difference market demand price and local demand price')
     model2.eq_SPRICEDIF = Complementarity(model2.i, rule = eq_SPRICEDIF, doc='difference market supply price and local supply price')
     model2.eq_PRLINK2 = Complementarity(model2.i, model2.i, rule = eq_PRLINK2, doc='price chain 2')
-
-    # including this to prevent exploding vegetable imports for china in the low trade scenarios, which don't seem plausible 
-    # the exploding imports were quite a deviation from all other patterns of results for all crops/countries/scenarios
-    if crop_code=='jvege' and scen[3]=='low':
-        def china_import_cap(model2, i):
-            if i == 'CHM':
-                return sum(model2.trade3[j, i] for j in model2.i if j != i) <= 0.05 * model2.demand03[i] # basing the cap on the present, and on what happens in the high scenarios
-            return Constraint.Skip 
-        model2.china_import_cap = Constraint(model2.i, rule=china_import_cap)
-
+    
     ####-------- SOLVE --------######
     TransformationFactory('mpec.simple_nonlinear').apply_to(model2)
 
@@ -452,9 +472,21 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, crop
     opt.options['acceptable_tol'] = 0.1
     opt.options['max_iter'] = max_iter
     opt.options['max_cpu_time'] = 60 * 240 ### 240 min##
-
+    opt.options['print_level'] = 5
 
     result=opt.solve(model2)
+
+    print(result.solver.termination_condition)
+
+    # Print any active constraints that are not satisfied
+    for c in model2.component_data_objects(Constraint, active=True):
+        try:
+            v = 0
+            if c.has_ub(): v = max(v, value(c.body) - value(c.upper))
+            if c.has_lb(): v = max(v, value(c.lower) - value(c.body))
+            if v > 1e-4: print(c.name, v)
+        except ValueError:
+            continue
 
     initial_supply = np.sum(list(model2.supply03.extract_values().values()))/1e6
     initial_demand = np.sum(list(model2.demand03.extract_values().values()))/1e6
