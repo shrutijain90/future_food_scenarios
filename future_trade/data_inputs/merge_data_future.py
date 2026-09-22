@@ -12,7 +12,7 @@ def get_demand_scn(food_group, categories):
     
     cons = pd.read_csv('../../OPSIS/Data/Future_production_demand_data/demand_scn_food_feed_other.csv') # lancet scenarios with feed and other included
     cons = cons[(cons['food_group']==food_group) & (cons['year']>=2020)]
-    cons['demand_q'] = cons['food_lancet_total_est'] + cons['feed_lancet_total_est'] + cons['other_fao_total'] # 'other_lancet_total_est'
+    cons['demand_q'] = cons['food_lancet_total_est'] + cons['feed_lancet_total_est'] + cons['other_lancet_total_est']# cons['other_fao_total'] 
     cons = cons[['region', 'kcal_scn', 'SSP_scn', 'diet_scn', 'year',
                  'food_group', 'demand_q']].rename(columns={'region': 'Abbreviation'})
     cons.loc[cons['demand_q']==0, 'demand_q'] = 1 #to prevent nulls and infs
@@ -23,7 +23,7 @@ def get_demand_scn(food_group, categories):
     # to prevent the demand for some commodities (nuts_seeds and oil_veg) in some countries (LSO, TKM; BTN, COD, PNG, SOM) from exploding
     cons = cons.merge(cons[cons['scaling_factor_demand']<2000].groupby(['kcal_scn', 'diet_scn', 'year'])[[
         'scaling_factor_demand']].max().reset_index().rename(columns={'scaling_factor_demand': 'scaling_factor_demand_max'}))
-    cons.head()
+    print(cons[['scaling_factor_demand', 'scaling_factor_demand_max']].describe())
     cons.loc[cons['scaling_factor_demand']>2000, 'scaling_factor_demand'] = cons.loc[cons['scaling_factor_demand']>2000]['scaling_factor_demand_max']
     cons = cons.drop('scaling_factor_demand_max', axis=1)
     
