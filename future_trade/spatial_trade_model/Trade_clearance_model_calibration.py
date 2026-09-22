@@ -22,7 +22,7 @@ from pathos.multiprocessing import ProcessPool, cpu_count
 
 ###### additional information,  ####
 sigma_val = 10 ### base = 10,
-eps_val = 7 ### base = 7
+eps_val = 3 ### base = 7
 
 factor_error = 3
 error = 1*10**(-1*factor_error)
@@ -34,7 +34,7 @@ logging.basicConfig(filename=f"{calibration_output}calibration_info.txt", level=
 if __name__ == '__main__':
     #### read data ###
     for crop_code in [
-        'jwhea', 'jrice',  'jmaiz', 'jbarl', 'jmill', 'jsorg', 'jocer', 
+        'jwhea', 'jrice', 'jmaiz', 'jbarl', 'jmill', 'jsorg', 'jocer', 
         'jcass', 'jpota', 'jyams', 'jswpt', 'jorat', 
         'jvege', 
         'jbana', 'jplnt', 'jsubf', 'jtemf', 
@@ -82,77 +82,112 @@ if __name__ == '__main__':
     
         #### run step 2 calibration ####
         logging.info('Model step 2')
-        
-        if crop_code in ['jpalm', 'jsugc', 'jrpsd', 'jmaiz', 'jsnfl', 'jtols', 'jsugb']: 
+
+
+        if crop_code in ['jothr']: 
             wtc = 1
             wp = 1
-            wx = 10000
-            count_max = 50
+            wx = 1000
+            count_max = 30
             max_iter = 3000
-            scale_factor = 5
-        elif crop_code in ['jwhea', 'jrice', 'jbana', 'jsoyb', 'jtemf', 'jsorg']: 
+            scale_factor = 1
+
+        if crop_code in ['jwhea', 'jpota', 'jbana']: #
             wtc = 1
-            wp = 1
+            wp = 100
+            wx = 10000
+            count_max = 30
+            max_iter = 3000
+            scale_factor = 1
+
+        if crop_code in ['jvege']: 
+            wtc = 1
+            wp = 100
             wx = 10000
             count_max = 50
             max_iter = 3000
             scale_factor = 1
-        elif crop_code in ['jsubf']: 
+
+        if crop_code in ['jsugc', 'jpalm', 'jrpsd', 'jsnfl', 'jtols', 'jsugb']: #
+            wtc = 1
+            wp = 100
+            wx = 10000
+            count_max = 30
+            max_iter = 3000
+            scale_factor = 5
+
+        if crop_code in ['jsoyb', 'jsorg']: #
+            wtc = 1
+            wp = 20
+            wx = 10000
+            count_max = 30
+            max_iter = 3000
+            scale_factor = 1
+
+        if crop_code in ['jmaiz', 'jbarl', 'jocer']: #
+            wtc = 1
+            wp = 10
+            wx = 10000
+            count_max = 30
+            max_iter = 3000
+            scale_factor = 5
+
+        if crop_code in ['jrice', 'jsubf', 'jgrnd']: ##
             wtc = 1
             wp = 1
             wx = 10000
             count_max = 30
-            max_iter = 5000
+            max_iter = 3000
             scale_factor = 1
-        elif crop_code in ['jgrnd', 'jothr', 'jorat', 'jplnt', 'jcowp', 'jpigp']:
+
+        if crop_code in ['jtemf']: 
+            wtc = 1
+            wp = 1
+            wx = 10000
+            count_max = 30
+            max_iter = 3000
+            scale_factor = 5
+
+        if crop_code in ['jlent', 'jbean', 'jopul', 'jcass']: 
+            wtc = 1
+            wp = 10
+            wx = 20000
+            count_max = 50
+            max_iter = 3000
+            scale_factor = 10
+
+        if crop_code in ['jmill', 'jswpt']: #
+            wtc = 1
+            wp = 5
+            wx = 20000
+            count_max = 50
+            max_iter = 3000
+            scale_factor = 20
+
+        if crop_code in ['jchkp']: #
+            wtc = 1
+            wp = 1
+            wx = 20000
+            count_max = 50
+            max_iter = 3000
+            scale_factor = 10
+
+        if crop_code in ['pigp', 'jplnt']: 
+            wtc = 1
+            wp = 10
+            wx = 30000
+            count_max = 30
+            max_iter = 3000
+            scale_factor = 30
+
+        if crop_code in ['jyams', 'jorat', 'jcowp']: 
             wtc = 1
             wp = 1
             wx = 30000
             count_max = 50
             max_iter = 3000
-            scale_factor = 1
-        elif crop_code in ['jyams']:
-            wtc = 1
-            wp = 1
-            wx = 20000
-            count_max = 50
-            max_iter = 3000
-            scale_factor = 1
-        elif crop_code in ['jvege', 'jmill']: 
-            wtc = 1
-            wp = 1
-            wx = 10000
-            count_max = 50
-            max_iter = 3000
-            scale_factor = 2
-        elif crop_code in ['jbarl']: 
-            wtc = 1
-            wp = 1
-            wx = 5000
-            count_max = 50
-            max_iter = 3000
-            scale_factor = 5
-        elif crop_code in ['jcass', 'jocer', 'jswpt']: 
-            wtc = 1
-            wp = 1
-            wx = 10000
-            count_max = 50
-            max_iter = 3000
-            scale_factor = 10
-        elif crop_code in ['jpota']:
-            wtc = 1
-            wp = 1
-            wx = 5000
-            count_max = 50
-            max_iter = 3000
-            scale_factor = 1
-        elif crop_code in ['jbean', 'jchkp', 'jlent', 'jopul']: 
-            wtc = 1
-            wp = 1
-            wx = 20000
-            count_max = 50
-            max_iter = 3000
-            scale_factor = 10
+            scale_factor = 30
+        
         
         model_calibration = trade_clearance_calibration(country_info=country_class,
                                                         bilateral_info=bilateral_class,
@@ -179,36 +214,21 @@ if __name__ == '__main__':
         logging.info(f'hit ratio: {np.round(hit_ratio_s2, 2)}')
         logging.info(f'MSE: {np.round(MSE_s2, 2)}')
         logging.info(f'R-squared: {np.round(R2_s2, 2)}\n')
+
+        tc1 = pd.Series(model_calibration.tc1.extract_values())
+        tc2 = pd.Series(model_calibration.tc2.extract_values())
+        r = (tc2 / tc1).replace([np.inf, -np.inf], np.nan).dropna()
+        print('tc2/tc1:', r.describe())
+        print('at upper bound (>=9.9x):', (r >= 9.9).sum(), 'at lower (<=0.11x):', (r <= 0.11).sum())
+
+        p2 = pd.Series(model_calibration.prodprice2.extract_values())
+        p1 = pd.Series(model_calibration.prodprice1.extract_values())
+        d = pd.DataFrame({'input': p1, 'calib': p2})
+        d['ratio'] = d['calib'] / d['input']
+        print(d['ratio'].describe())
+        print('rank corr:', d['input'].corr(d['calib'], method='spearman'))
+        print('pi total:', sum(value(model_calibration.pi[i,j]) for i in model_calibration.i for j in model_calibration.i))
         
-        ### plot of trade flows ##
+        ## plot of trade flows ##
         scatter_plot_trade(df_output=model_validation_s2, 
                            fname=f'{calibration_output}{crop_code}_s2')
-        
-        # # if both demand and supply for a region are 0, it gets omitted from output files. adding all regions so the future code runs as expected
-        # df_country = pd.read_csv(file_country)
-        # df_bil = pd.read_csv(file_bil)
-        
-        # trade_cal = pd.read_csv(f'{calibration_output}trade_calibration_{crop_code}.csv', header=None)
-        # trade_cal.columns = ['from_abbreviation', 'to_abbreviation', 'trade_cal']
-        # trade_cal = trade_cal.merge(df_bil[['from_abbreviation', 'to_abbreviation']], how='right').fillna(0)
-        # trade_cal.to_csv(f'{calibration_output}trade_calibration_{crop_code}.csv', index=False, header=False)
-
-        # calib = pd.read_csv(f'{calibration_output}calib_calibration_{crop_code}.csv', header=None)
-        # calib.columns = ['from_abbreviation', 'to_abbreviation', 'calib']
-        # calib = calib.merge(df_bil[['from_abbreviation', 'to_abbreviation']], how='right').fillna(0)
-        # calib.to_csv(f'{calibration_output}calib_calibration_{crop_code}.csv', index=False, header=False)
-
-        # tc = pd.read_csv(f'{calibration_output}tc_calibration_{crop_code}.csv', header=None)
-        # tc.columns = ['from_abbreviation', 'to_abbreviation', 'tc']
-        # tc = tc.merge(df_bil[['from_abbreviation', 'to_abbreviation']], how='right').fillna(0)
-        # tc.to_csv(f'{calibration_output}tc_calibration_{crop_code}.csv', index=False, header=False)
-
-        # conprice = pd.read_csv(f'{calibration_output}conprice_calibration_{crop_code}.csv', header=None)
-        # conprice.columns = ['abbreviation', 'conprice']
-        # conprice = conprice.merge(df_country[['abbreviation']], how='right').fillna(0)
-        # conprice.to_csv(f'{calibration_output}conprice_calibration_{crop_code}.csv', index=False, header=False)
-
-        # prodprice = pd.read_csv(f'{calibration_output}prodprice_calibration_{crop_code}.csv', header=None)
-        # prodprice.columns = ['abbreviation', 'prodprice']
-        # prodprice = prodprice.merge(df_country[['abbreviation']], how='right').fillna(0)
-        # prodprice.to_csv(f'{calibration_output}prodprice_calibration_{crop_code}.csv', index=False, header=False)
