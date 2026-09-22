@@ -42,13 +42,16 @@ Runtime:
 ## Data
 
 Input scripts read from external data directories (e.g. `../../data/` and `../../OPSIS/Data/`) and include:  
-- FAOSTAT bulk downloads 
-- Country classifications
-- EAT-Lancet future demand data
-- IMPACT model outputs
+- [FAOSTAT data](https://www.fao.org/faostat/en/#data) 
+- [FishStat data](https://www.fao.org/fishery/statistics/software/fishstatj/en)
+- [EAT-Lancet future demand data](https://ora.ox.ac.uk/objects/uuid:b5a8c0c6-293c-4420-90a7-f9195d6631fa)
+- Feed coversion ratios from [Herrero et al. (2013)](https://www.pnas.org/doi/10.1073/pnas.1308149110) and [Tilman and Clark (2014)](https://www.nature.com/articles/nature13959) 
+- [IMPACT model outputs](https://github.com/IFPRI/IMPACT)
 
 These are not tracked in version control and must be available locally to run.
 
 ## Dependencies
 
-pandas, numpy, matplotlib, scikit-learn, statsmodels, geopandas, pyomo.
+Python: pandas, numpy, matplotlib, scikit-learn, statsmodels, geopandas, pyomo.
+
+R: tidyverse, ggrepel, janitor, ragg, scales, ggforce, patchwork, tidytext, grid, stringr, ggh4x, dplyr, cowplot.
