@@ -51,6 +51,26 @@ def get_prod_matrix(prod, item, year, FAO_area_codes, processing_factors):
     
     return P
 
+def get_fish_prod_matrix(prod, item, year, FAO_area_codes):
+    
+    # preparing production matrix
+    prod = prod[['Area Code (M49)', 'Area', 'Item', 'Element', 'Year', 'Unit', 'Value']]
+    prod = prod[(prod['Year']==year) & (prod['Item'].isin(item)) & (prod['Element']=='Production')].reset_index(drop=True)
+    prod = prod.rename(columns={'Value': 'Production'})
+    prod = prod.drop('Element', axis=1)
+    
+    prod['Area Code (M49)'] = prod.apply(lambda row: int(row['Area Code (M49)'][1:]), axis=1)
+    prod = prod.rename(columns={'Area Code (M49)': 'M49 Code'})
+    prod = prod.groupby(['M49 Code', 'Area'])[['Production']].sum().reset_index()
+    prod = prod.merge(FAO_area_codes, how='right')
+    prod = prod[['iso3', 'M49 Code', 'Abbreviation', 'Production']]
+    prod = prod.fillna(0)
+    prod = prod.groupby('iso3').sum()[['Production']].reset_index().sort_values(by='iso3')
+    
+    P = prod[['Production']].to_numpy()
+    
+    return P
+
 def get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_items, trade_factors, processing_factors):
     
     # special function to split refined and row sugars into sugar cane and sugar beet categories 
@@ -203,6 +223,42 @@ def get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_items, trade_f
     E = trade_mat.drop(['Country B iso3'], axis=1).to_numpy()
     return E
 
+def get_fish_trade_matrix(mat, year, FAO_area_codes):
+    
+    # to map this data on to categories of interest and on to our area codes
+    item_codes = pd.read_csv('../../data/FI_Trade_Partners_2024.1.0/CL_FI_COMMODITY_ISSCFC.csv')
+    country_codes = pd.read_csv('../../data/FI_Trade_Partners_2024.1.0/CL_FI_COUNTRY_GROUPS.csv')
+    
+    mat = mat.merge(item_codes, left_on='COMMODITY.FAO_CODE', right_on='Code')
+    mat = mat[mat['SITCv4']<38] # removing all misc categrories like feed
+    
+    mat = mat[(mat['PERIOD']==year) 
+             & (mat['TRADE_FLOW.ALPHA_CODE']=='I')] # considering the imports as the data has both exports and re-exports separately
+                                                    # re-export algorithm will take care of the allocation later
+    mat = mat[['COUNTRY_REPORTER.UN_CODE', 'COUNTRY_PARTNER.UN_CODE', 'VALUE']]
+    mat = mat.groupby(['COUNTRY_REPORTER.UN_CODE', 'COUNTRY_PARTNER.UN_CODE']).sum().reset_index()
+    mat = mat.merge(country_codes[['UN_Code', 'ISO3_Code']], left_on='COUNTRY_REPORTER.UN_CODE', right_on='UN_Code').drop(
+        ['COUNTRY_REPORTER.UN_CODE', 'UN_Code'], axis=1).rename(columns={'ISO3_Code': 'Country A iso3', 'VALUE': 'From B to A'})
+    mat = mat.merge(country_codes[['UN_Code', 'ISO3_Code']], left_on='COUNTRY_PARTNER.UN_CODE', right_on='UN_Code').drop(
+        ['COUNTRY_PARTNER.UN_CODE', 'UN_Code'], axis=1).rename(columns={'ISO3_Code': 'Country B iso3'})
+    
+    trade_mat = mat.merge(FAO_area_codes, left_on='Country A iso3', right_on='iso3', how='right')
+    trade_mat = trade_mat.drop(['M49 Code', 'Country A iso3'], axis=1).rename(columns={'iso3': 'Country A iso3'})
+    trade_mat = trade_mat.sort_values(by='Country A iso3')
+    
+    def _add_all_countries(m):
+        m = m.merge(FAO_area_codes, left_on='Country B iso3', right_on='iso3', how='right')
+        m = m.drop(['M49 Code', 'Country A iso3', 'Country B iso3'], axis=1).rename(columns={'iso3': 'Country B iso3'})
+        m = m.sort_values(by='Country B iso3')
+        return m
+    
+    trade_mat = trade_mat.groupby(['Country A iso3']).apply(lambda g: _add_all_countries(g)).reset_index()
+    trade_mat = trade_mat.fillna(0)
+    trade_mat.loc[trade_mat['Country A iso3']==trade_mat['Country B iso3'], 'From B to A'] = 0
+    trade_mat = trade_mat[['Country A iso3', 'Country B iso3', 'From B to A']].groupby(['Country A iso3', 'Country B iso3']).sum().reset_index()
+    trade_mat = pd.pivot(trade_mat, index=['Country B iso3'], columns = 'Country A iso3',values = 'From B to A').reset_index()
+    E = trade_mat.drop(['Country B iso3'], axis=1).to_numpy()
+    return E
 
 def re_export_algo(P, E):
     # Implements the trade matrix re-export algorithm as given in Croft et al., 2018 (https://www.sciencedirect.com/science/article/pii/S0959652618326180#appsec2)
@@ -543,8 +599,12 @@ if __name__ == '__main__':
                   'eggs': ['Eggs Primary'],
                   'poultry': ['Meat, Poultry'],
                   'lamb': ['Sheep and Goat Meat'],
-                  'pork': ['Meat of pig with the bone, fresh or chilled']
+                  'pork': ['Meat of pig with the bone, fresh or chilled'],
+                  'fish': [['Freshwater Fish', 'Demersal Fish', 'Pelagic Fish', 'Marine Fish, Other',
+                            'Crustaceans', 'Cephalopods', 'Molluscs, Other']]
     }
+
+    previous_time_step = False
 
     prod = pd.read_csv(f'{data_dir_prefix}FAOSTAT_A-S_E/Production_Crops_Livestock_E_All_Data_(Normalized)/Production_Crops_Livestock_E_All_Data_(Normalized).csv',
                        encoding='latin1')
@@ -554,15 +614,25 @@ if __name__ == '__main__':
                           encoding='latin1', low_memory=False)
     trade_factors = pd.read_csv('../../OPSIS/Data/FAOSTAT/trade_factors.csv') # for things like cassava starch etc
     processing_factors = pd.read_csv('../../OPSIS/Data/FAOSTAT/processing_factors.csv') # for oil and sugar crops
-    
-    # years = [2018, 2019, 2020, 2021, 2022] 
-    years = [2013, 2014, 2015, 2016, 2017]
+
+    fish_prod = pd.read_csv('../../data/FAOSTAT_A-S_E/FoodBalanceSheets_E_All_Data_(Normalized)/FoodBalanceSheets_E_All_Data_(Normalized).csv',
+                 encoding='latin1')
+    fish_prod['Value'] = fish_prod['Value'] * 1000 # as FBS reports production in 1000t units
+    fish_mat = pd.read_csv('../../data/FI_Trade_Partners_2024.1.0/TRADE_PARTNERS_QUANTITY.csv')
     
     FAO_area_codes = get_area_codes()
     FAO_area_codes = FAO_area_codes.drop(['Region Name', 'Sub-region Name', 'Intermediate Region Name'], axis=1)
 
     for category in items_dict.keys():
         print(category)
+        if previous_time_step:
+            years = [2013, 2014, 2015, 2016, 2017] # [t-1], needed only for all crop products
+            if category in ['beef', 'milk', 'lamb', 'pork', 'poultry', 'eggs', 'fish']:
+                continue
+        elif category == 'fish':
+            years = [2019, 2020, 2021, 2022] # [t] for fish products (years available for fish data)
+        else:
+            years = [2018, 2019, 2020, 2021, 2022] # [t] for all crops products and non-fish animal products
         items = items_dict[category]
 
         df_P_list = []
@@ -579,8 +649,12 @@ if __name__ == '__main__':
 
             for item in items:
                 print(item)
-                P = get_prod_matrix(prod, item, year, FAO_area_codes, processing_factors)
-                E = get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_dict[item], trade_factors, processing_factors)
+                if category == 'fish':
+                    P = get_fish_prod_matrix(fish_prod, item, year, FAO_area_codes)
+                    E = get_fish_trade_matrix(fish_mat, year, FAO_area_codes)
+                else:
+                    P = get_prod_matrix(prod, item, year, FAO_area_codes, processing_factors)
+                    E = get_trade_matrix(mat, prod, item, year, FAO_area_codes, trade_dict[item], trade_factors, processing_factors)
                 D = re_export_algo(P, E)
 
                 # adjustments due to duplication across categories
