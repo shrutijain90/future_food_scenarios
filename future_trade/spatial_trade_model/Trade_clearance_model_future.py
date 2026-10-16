@@ -38,10 +38,10 @@ max_iter = 30000
 SSP = 'SSP2'
 
 ### Scenarios ###
-scen_diet = ['BMK', 'FLX', 'PSC', 'VEG', 'VGN'] # 'BMK', 'FLX', 'FLX_hredmeat', 'FLX_hmilk', 'PSC', 'VEG', 'VGN'
+scen_diet = ['FLX50', 'PSC50', 'VEG50', 'VGN50'] # 'BMK', 'FLX', 'PSC', 'VEG', 'VGN', 'FLX50', 'PSC50', 'VEG50', 'VGN50'
 scen_cal = ['2500kcal'] # '2100kcal' # taking 2500 cal as default means that we are assuming that the present is closer to 2500kcal scenario, as will be the future
-scen_clim = ['2.6', '7'] # 'NoCC', '2.6', '7', '8.5'
-scen_lib = ['low', 'high'] # 'low', 'high' # trade scenarios 
+scen_clim = ['2.6'] # '2.6', '7'
+scen_lib = ['low'] # 'low', 'high' 
 
 scen_list = list(itertools.product(*[scen_diet, scen_cal, scen_clim, scen_lib]))
 
@@ -65,12 +65,15 @@ for crop_code in [
     if crop_code in ['jyams', 'jchkp', 'jcowp', 'jlent', 'jpigp', 'jopul', 'jothr']: 
         error_scale = 1000
         epsilon = 0.0001
+    else:
+        error_scale = 100
+        epsilon = 0.001
     
     for scen in scen_list:
 
         print(scen)
         logging.info(scen)
-        if crop_code in ['jgrnd',  'jothr', 'jrpsd', 'jsnfl', 'jtols', 'jpalm', 'jsugc', 'jsugb'] and scen[0] not in ['BMK', 'FLX']:
+        if crop_code in ['jgrnd',  'jothr', 'jrpsd', 'jsnfl', 'jtols', 'jpalm', 'jsugc', 'jsugb'] and scen[0] not in ['BMK', 'FLX', 'FLX50']:
             continue
 
         country_output_all, trade_all = pd.DataFrame(), pd.DataFrame()

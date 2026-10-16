@@ -341,11 +341,6 @@ p_final <- (p_supply + plot_spacer() + p_trade) +
 print(p_final)
 ggsave("fig_data/production_trade_growth.png", p_final, width = 8, height = 10, dpi = 300)
 
-
-
-
-
-
 ###-----------------------------------------------------------###
 ### 2020 BASELINE SUPPLY, IMPORT AND EXPORT VOLUMES AND SHARES ###
 ###-----------------------------------------------------------###
