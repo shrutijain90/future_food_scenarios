@@ -429,7 +429,7 @@ if __name__ == '__main__':
                   'Dates': ['Dates'], 
                   'Figs': ['Figs', 'Figs, dried'], 
                   'Gooseberries': ['Gooseberries'], 
-                  'Grapes': ['Grape juice', 'Grapes'], 
+                  'Grapes': ['Grape juice', 'Grapes', 'Raisins'], 
                   'Kiwi fruit': ['Kiwi fruit'], 
                   'Lemons and limes': ['Juice of lemon', 'Lemon juice, concentrated', 'Lemons and limes'], 
                   'Locust beans (carobs)': ['Locust beans (carobs)'], 
@@ -437,7 +437,7 @@ if __name__ == '__main__':
                   'Oranges': ['Orange juice', 'Orange juice, concentrated', 'Oranges'], 
                   'Other berries and fruits of the genus vaccinium n.e.c.': ['Other berries and fruits of the genus vaccinium n.e.c.'], 
                   'Other citrus fruit, n.e.c.': ['Citrus juice, concentrated n.e.c.', 'Juice of citrus fruit n.e.c.', 'Other citrus fruit, n.e.c.'], 
-                  'Other fruits, n.e.c.': ['Fruit prepared n.e.c.', 'Juice of fruits n.e.c.', 'Other fruit n.e.c., dried', 'Other fruits, n.e.c.', 'Raisins'], 
+                  'Other fruits, n.e.c.': ['Fruit prepared n.e.c.', 'Juice of fruits n.e.c.', 'Other fruit n.e.c., dried', 'Other fruits, n.e.c.'], 
                   'Other pome fruits': [],
                   'Other stone fruits': ['Other stone fruits'], 
                   'Other tropical fruits, n.e.c.': ['Other tropical fruit, dried', 'Other tropical fruits, n.e.c.'], 
@@ -520,38 +520,38 @@ if __name__ == '__main__':
 
     # based on 'IMPACT_code column in crop correspondance tables'    
     items_dict = {
-                  # wheat
-                  'jwhea': ['Wheat'],
+                #   # wheat
+                #   'jwhea': ['Wheat'],
                   
-                  # rice
-                  'jrice': ['Rice'],
+                #   # rice
+                #   'jrice': ['Rice'],
                   
-                  # maize
-                  'jmaiz': ['Maize (corn)'],
+                #   # maize
+                #   'jmaiz': ['Maize (corn)'],
                   
-                  # othr_grains
-                  'jbarl': ['Barley'],
-                  'jmill': ['Millet'], 
-                  'jsorg': ['Sorghum'], 
-                  'jocer': ['Rye', 'Oats', 'Buckwheat', 'Quinoa', 'Canary seed', 'Fonio', 'Mixed grain', 'Triticale', 'Cereals n.e.c.'], 
+                #   # othr_grains
+                #   'jbarl': ['Barley'],
+                #   'jmill': ['Millet'], 
+                #   'jsorg': ['Sorghum'], 
+                #   'jocer': ['Rye', 'Oats', 'Buckwheat', 'Quinoa', 'Canary seed', 'Fonio', 'Mixed grain', 'Triticale', 'Cereals n.e.c.'], 
                   
-                  # roots
-                  'jcass': ['Cassava, fresh'], 
-                  'jpota': ['Potatoes'], 
-                  'jswpt': ['Sweet potatoes'],
-                  'jyams': ['Yams'],
-                  'jorat': ['Taro', 'Edible roots and tubers with high starch or inulin content, n.e.c., fresh'],
+                #   # roots
+                #   'jcass': ['Cassava, fresh'], 
+                #   'jpota': ['Potatoes'], 
+                #   'jswpt': ['Sweet potatoes'],
+                #   'jyams': ['Yams'],
+                #   'jorat': ['Taro', 'Edible roots and tubers with high starch or inulin content, n.e.c., fresh'],
                   
-                  # vegetables
-                  'jvege': ['Artichokes', 'Asparagus', 'Broad beans and horse beans, green', 'Cabbages', 'Carrots and turnips', 'Cauliflowers and broccoli',
-                            'Chillies and peppers, green (Capsicum spp. and Pimenta spp.)', 'Cucumbers and gherkins', 'Eggplants (aubergines)', 'Green corn (maize)',
-                            'Green garlic', 'Leeks and other alliaceous vegetables', 'Lettuce and chicory', 'Mushrooms and truffles', 'Okra',
-                            'Onions and shallots, dry (excluding dehydrated)', 'Onions and shallots, green', 'Other beans, green', 'Other vegetables, fresh n.e.c.',
-                            'Peas, green', 'Pumpkins, squash and gourds', 'Spinach', 'String beans', 'Tomatoes'],
+                #   # vegetables
+                #   'jvege': ['Artichokes', 'Asparagus', 'Broad beans and horse beans, green', 'Cabbages', 'Carrots and turnips', 'Cauliflowers and broccoli',
+                #             'Chillies and peppers, green (Capsicum spp. and Pimenta spp.)', 'Cucumbers and gherkins', 'Eggplants (aubergines)', 'Green corn (maize)',
+                #             'Green garlic', 'Leeks and other alliaceous vegetables', 'Lettuce and chicory', 'Mushrooms and truffles', 'Okra',
+                #             'Onions and shallots, dry (excluding dehydrated)', 'Onions and shallots, green', 'Other beans, green', 'Other vegetables, fresh n.e.c.',
+                #             'Peas, green', 'Pumpkins, squash and gourds', 'Spinach', 'String beans', 'Tomatoes'],
                   
-                #   fruits
-                  'jbana': ['Bananas'], 
-                  'jplnt': ['Plantains and cooking bananas'], 
+                # #   fruits
+                #   'jbana': ['Bananas'], 
+                #   'jplnt': ['Plantains and cooking bananas'], 
                   'jsubf': ['Apricots', 'Avocados', 'Cantaloupes and other melons', 'Cashewapple', 'Dates', 'Figs', 
                             'Kiwi fruit', 'Lemons and limes', 'Locust beans (carobs)', 'Mangoes, guavas and mangosteens', 
                             'Oranges', 'Other citrus fruit, n.e.c.', 'Other fruits, n.e.c.', 'Other tropical fruits, n.e.c.', 'Papayas', 
@@ -562,49 +562,49 @@ if __name__ == '__main__':
                             'Peaches and nectarines', 'Pears', 'Persimmons', 'Plums and sloes', 'Quinces', 'Raspberries', 
                             'Sour cherries', 'Strawberries', 'Olives'], 
                   
-                  # legumes
-                  'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
-                  'jchkp': ['Chick peas, dry'],
-                  'jcowp': ['Cow peas, dry'],
-                  'jlent': ['Lentils, dry'], 
-                  'jpigp': ['Pigeon peas, dry'], 
-                  'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
+                  # # legumes
+                  # 'jbean': ['Bambara beans, dry', 'Beans, dry', 'Broad beans and horse beans, dry'], 
+                  # 'jchkp': ['Chick peas, dry'],
+                  # 'jcowp': ['Cow peas, dry'],
+                  # 'jlent': ['Lentils, dry'], 
+                  # 'jpigp': ['Pigeon peas, dry'], 
+                  # 'jopul': ['Lupins', 'Other pulses n.e.c.', 'Peas, dry', 'Vetches'], 
                   
-                  # soybeans
-                  'jsoyb': ['Soya beans'],
+                  # # soybeans
+                  # 'jsoyb': ['Soya beans'],
                   
-                  # nuts_seeds
-                  'jgrnd': ['Groundnuts, excluding shelled'], 
-                  'jothr': ['Almonds, in shell', 'Brazil nuts, in shell', 'Cashew nuts, in shell', 'Chestnuts, in shell', 'Hazelnuts, in shell', 
-                            'Other nuts (excluding wild edible nuts and groundnuts), in shell, n.e.c.', 'Pistachios, in shell', 'Walnuts, in shell', 
-                            'Linseed', 'Hempseed', 'Sunflower seed', 'Safflower seed', 'Poppy seed', 'Sesame seed'],
+                  # # nuts_seeds
+                  # 'jgrnd': ['Groundnuts, excluding shelled'], 
+                  # 'jothr': ['Almonds, in shell', 'Brazil nuts, in shell', 'Cashew nuts, in shell', 'Chestnuts, in shell', 'Hazelnuts, in shell', 
+                  #           'Other nuts (excluding wild edible nuts and groundnuts), in shell, n.e.c.', 'Pistachios, in shell', 'Walnuts, in shell', 
+                  #           'Linseed', 'Hempseed', 'Sunflower seed', 'Safflower seed', 'Poppy seed', 'Sesame seed'],
                   
                   
-                  # oil_veg
-                  'jrpsd': ['Rape or colza seed'], 
-                  'jsnfl': ['Sunflower seed'], 
-                  'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Safflower seed', 'Sesame seed',
-                            'Castor oil seeds', 'Cotton seed', 'Coconuts, in shell', 'Mustard seed', 'Olives'], 
+                  # # oil_veg
+                  # 'jrpsd': ['Rape or colza seed'], 
+                  # 'jsnfl': ['Sunflower seed'], 
+                  # 'jtols': ['Groundnuts, excluding shelled', 'Linseed', 'Hempseed', 'Safflower seed', 'Sesame seed',
+                  #           'Castor oil seeds', 'Cotton seed', 'Coconuts, in shell', 'Mustard seed', 'Olives'], 
                   
-                  # oil_palm
-                  'jpalm': ['Oil palm fruit'], 
+                  # # oil_palm
+                  # 'jpalm': ['Oil palm fruit'], 
                   
-                  # sugar
-                  'jsugb': ['Sugar beet'], 
-                  'jsugc': ['Sugar cane'],   
+                  # # sugar
+                  # 'jsugb': ['Sugar beet'], 
+                  # 'jsugc': ['Sugar cane'],   
 
-                  # for calculating feed
-                  'milk': ['Milk, Total'],
-                  'beef': ['Beef and Buffalo Meat, primary'],
-                  'eggs': ['Eggs Primary'],
-                  'poultry': ['Meat, Poultry'],
-                  'lamb': ['Sheep and Goat Meat'],
-                  'pork': ['Meat of pig with the bone, fresh or chilled'],
-                  'fish': [['Freshwater Fish', 'Demersal Fish', 'Pelagic Fish', 'Marine Fish, Other',
-                            'Crustaceans', 'Cephalopods', 'Molluscs, Other']]
+                  # # for calculating feed
+                  # 'milk': ['Milk, Total'],
+                  # 'beef': ['Beef and Buffalo Meat, primary'],
+                  # 'eggs': ['Eggs Primary'],
+                  # 'poultry': ['Meat, Poultry'],
+                  # 'lamb': ['Sheep and Goat Meat'],
+                  # 'pork': ['Meat of pig with the bone, fresh or chilled'],
+                  # 'fish': [['Freshwater Fish', 'Demersal Fish', 'Pelagic Fish', 'Marine Fish, Other',
+                  #           'Crustaceans', 'Cephalopods', 'Molluscs, Other']]
     }
 
-    previous_time_step = False
+    previous_time_step = True
 
     prod = pd.read_csv(f'{data_dir_prefix}FAOSTAT_A-S_E/Production_Crops_Livestock_E_All_Data_(Normalized)/Production_Crops_Livestock_E_All_Data_(Normalized).csv',
                        encoding='latin1')
