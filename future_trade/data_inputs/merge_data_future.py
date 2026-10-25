@@ -57,7 +57,7 @@ def get_impact_supply_data(FAO_area_codes):
         'RTB-Banana' : 'jbana',
         'RTB-Plantain' : 'jplnt',
 
-        'PUL-Other ': 'jopul', 
+        'PUL-Other': 'jopul', 
         'PUL-Beans': 'jbean', 
         'PUL-Chickpeas': 'jchkp', 
         'PUL-Lentils' : 'jlent',
