@@ -146,6 +146,8 @@ def combine_data(prod, prod_prices, gdp, sua, item, FAO_area_codes, category):
         ['iso3', 'Region Name', 'Sub-region Name', 'Intermediate Region Name', 'M49 Code', 'Item']).mean().reset_index()
 
     prod_prices = get_prod_prices(prod_prices, item)
+    if item == 'Rice':
+        prod_prices['Producer Price (USD/tonne)'] = prod_prices['Producer Price (USD/tonne)'] / 0.7  # per tonne of milled rice
     df = prod.merge(gdp, how='left').merge(prod_prices, how='left').rename(columns={'Producer Price (USD/tonne)': 'Producer_price'})
     
     return df
