@@ -8,6 +8,16 @@ import os
 from future_trade.data_inputs.merge_data import get_demand_elas, get_supply_elas
 from future_trade.data_inputs.balance_trade import get_area_codes
 
+def get_model_demand_2020(categories):
+    # 2020 demand for the food group (summed over its crops)
+    demand = pd.DataFrame()
+    for category in categories:
+        country = pd.read_csv(f'../../OPSIS/Data/Trade_clearance_model/Input/Country_data/country_information_{category}.csv')
+        demand = pd.concat([demand, country[['abbreviation', 'demand_q']]])
+    demand = demand.groupby('abbreviation')['demand_q'].sum().reset_index().rename(columns={
+        'abbreviation': 'Abbreviation', 'demand_q': 'demand_model_2020'})
+    return demand
+
 def get_demand_scn(food_group, categories):
     
     cons = pd.read_csv('../../OPSIS/Data/Future_production_demand_data/demand_scn_food_feed_other.csv') # lancet scenarios with feed and other included
@@ -57,7 +67,7 @@ def get_impact_supply_data(FAO_area_codes):
         'RTB-Banana' : 'jbana',
         'RTB-Plantain' : 'jplnt',
 
-        'PUL-Other': 'jopul', 
+        'PUL-Other Pulses': 'jopul', 
         'PUL-Beans': 'jbean', 
         'PUL-Chickpeas': 'jchkp', 
         'PUL-Lentils' : 'jlent',
