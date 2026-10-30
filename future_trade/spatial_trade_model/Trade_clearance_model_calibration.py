@@ -92,7 +92,7 @@ if __name__ == '__main__':
             max_iter = 3000
             scale_factor = 1
 
-        if crop_code in ['jwhea', 'jpota', 'jbana']: #
+        if crop_code in ['jwhea', 'jpota', 'jbana']: 
             wtc = 1
             wp = 100
             wx = 10000
@@ -108,7 +108,7 @@ if __name__ == '__main__':
             max_iter = 3000
             scale_factor = 1
 
-        if crop_code in ['jsugc', 'jpalm', 'jrpsd', 'jsnfl', 'jtols', 'jsugb']: #
+        if crop_code in ['jsugc', 'jpalm', 'jrpsd', 'jsnfl', 'jtols', 'jsugb']: 
             wtc = 1
             wp = 100
             wx = 10000
@@ -116,7 +116,7 @@ if __name__ == '__main__':
             max_iter = 3000
             scale_factor = 5
 
-        if crop_code in ['jsoyb', 'jsorg']: #
+        if crop_code in ['jsoyb', 'jsorg']: 
             wtc = 1
             wp = 20
             wx = 10000
@@ -124,7 +124,7 @@ if __name__ == '__main__':
             max_iter = 3000
             scale_factor = 1
 
-        if crop_code in ['jmaiz', 'jbarl', 'jocer']: #
+        if crop_code in ['jmaiz', 'jbarl', 'jocer']: 
             wtc = 1
             wp = 10
             wx = 10000
@@ -132,21 +132,13 @@ if __name__ == '__main__':
             max_iter = 3000
             scale_factor = 5
 
-        if crop_code in ['jrice', 'jsubf', 'jgrnd']: ##
+        if crop_code in ['jrice', 'jsubf', 'jgrnd']: 
             wtc = 1
             wp = 1
             wx = 10000
             count_max = 30
             max_iter = 3000
             scale_factor = 1
-
-        if crop_code in ['jtemf']: 
-            wtc = 1
-            wp = 1
-            wx = 10000
-            count_max = 30
-            max_iter = 3000
-            scale_factor = 5
 
         if crop_code in ['jlent', 'jbean', 'jopul', 'jcass']: 
             wtc = 1
@@ -156,7 +148,7 @@ if __name__ == '__main__':
             max_iter = 3000
             scale_factor = 10
 
-        if crop_code in ['jmill', 'jswpt']: #
+        if crop_code in ['jmill', 'jswpt']: 
             wtc = 1
             wp = 5
             wx = 20000
@@ -164,7 +156,15 @@ if __name__ == '__main__':
             max_iter = 3000
             scale_factor = 20
 
-        if crop_code in ['jchkp']: #
+        if crop_code in ['jtemf']: 
+            wtc = 1
+            wp = 1
+            wx = 20000
+            count_max = 30
+            max_iter = 3000
+            scale_factor = 10
+
+        if crop_code in ['jchkp']: 
             wtc = 1
             wp = 1
             wx = 20000
