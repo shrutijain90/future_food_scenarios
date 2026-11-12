@@ -4,7 +4,6 @@ from pyomo.environ import *
 from pyomo.mpec import *
 import math
 import datetime
-import logging
 from future_trade.spatial_trade_model.functions_general import *
 
 #### SHOCK MODEL ######
@@ -166,10 +165,6 @@ def read_update_future_model_data(model_output, crop_code, year_select, SSP, sce
     country_output['demand'] = country_output['demand']*(country_output[f'scaling_demand_{year_select}']/country_output[f'scaling_demand_{year_select-5}'])
     country_output['import'] = country_output['import']*(country_output[f'scaling_demand_{year_select}']/country_output[f'scaling_demand_{year_select-5}'])
 
-    ### supply elas in denominator here!!!! (as supply elas = perc change in quantity supplied wrt perc change in price)
-    country_output['prodprice'] = country_output['prodprice']*(1+((1/country_output['supply_elas']) * ((country_output[f'scaling_supply_{year_select}']/country_output[f'scaling_supply_{year_select-5}'])-1)))/(country_output[f'scaling_yield_{year_select}']/country_output[f'scaling_yield_{year_select-5}'])
-    # country_output['prodprice'] = country_output['prodprice']*(1-((1/country_output['supply_elas']) * ((country_output[f'scaling_supply_{year_select}']/country_output[f'scaling_supply_{year_select-5}'])-1)))
-
     return country_output, country_output_2020
 
 def get_calibrated_demand_supply_2020(crop_code, calibration_output_path, error, error_scale):
@@ -228,20 +223,23 @@ def get_liberalization_targets(lib_scenario):
     Get self-sufficiency and single-dominant partner targets based on trade liberalization scenario.
     """
     if lib_scenario == 'low':
-        target_SS=0.7 # self-sufficiency in future should be at least 70% of self-sufficiency in 2020
-        target_SD=0.3 # not more than 30% of demand (or current share, whichever is larger) should be met through any single exporting partner
-        target_ID = 0.5 # not more thant 50% of imports  (or current share, whichever is larger)should come from any single exporting partner 
+        target_SS=0.9 # self-sufficiency in future should be at least 90% of self-sufficiency in 2020
+        target_SD=0.2 # not more than 20% of demand (or current share, whichever is larger) should be met through any single exporting partner
+        target_ID = 0.4 # not more thant 40% of imports (or current share, whichever is larger) should come from any single exporting partner 
+    elif lib_scenario == 'med':
+        target_SS=0.7
+        target_SD=0.3
+        target_ID = 0.5
     else:
-        target_SS=0.3
-        target_SD=0.7
-        target_ID = 0.8
+        target_SS=0.5
+        target_SD=0.4
+        target_ID = 0.6
 
     return target_SS, target_SD, target_ID
 
 def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, epsilon, crop_code, calibration_output_path, model_output, year_select, SSP,
                           scen, factor_error, error, error_scale = 100, max_iter = 3000, input_folder='Input'):
     print(SSP, crop_code,year_select,'running', datetime.datetime.now(), max_iter) 
-    logging.info(f"{SSP}, {crop_code}, {year_select}, running, {datetime.datetime.now()}, {max_iter}") 
 
     target_SS, target_SD, target_ID = get_liberalization_targets(scen[3]) ### get the targets based on trade liberalization scenario
 
@@ -268,6 +266,12 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, epsi
         trade_output = pd.read_csv(f'{model_output}Trade_output/trade_output_{SSP}_{scen[0]}_{scen[1]}_{scen[2]}_{scen[3]}_{year_select-5}_{crop_code}.csv')
         trade_output['trade_binary'] = np.where(trade_output['trade']>0,1,0)
         trade_output['trade'] = np.round(np.where(trade_output['trade']<=error, error, trade_output['trade']), factor_error)
+        
+        # routes that ended last period at their cap (no such column in the 2020 output)
+        last_capped = set()
+        if 'capped' in trade_output.columns:
+            last_capped = set(trade_output.loc[trade_output['capped']==1,
+                ['from_abbreviation','to_abbreviation']].itertuples(index=False, name=None))
 
         ### self-sufficiency to domestic supply in 2020 ##
         country_output_2020['dom_share_demand'] = target_SS * country_output_2020['dom_share_demand']
@@ -285,10 +289,6 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, epsi
         print(pd.DataFrame([prodprice_calib]).transpose().describe())
         print('input cons price')
         print(pd.DataFrame([conprice_calib]).transpose().describe())
-        logging.info('input prod price')
-        logging.info(pd.DataFrame([prodprice_calib]).transpose().describe())
-        logging.info('input cons price')
-        logging.info(pd.DataFrame([conprice_calib]).transpose().describe())
 
         ### update the country info, demand, supply and demand elas ###
         country_info = update_country_dict(country_dict=country_info, country_output=country_output, year_select=year_select)
@@ -420,14 +420,18 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, epsi
             ub_imports = max(ub_imports, 10 * error / error_scale)
             return min(value(model2.trade_calib[i,j]), ub_demand, ub_imports)
             
+    def trade_cap(model2, i, j):
+        # most i can send to j this period (the diversification constraints)
+        ub_demand = value(model2.relative_sd_bound[i,j]) * value(model2.demand03[j])
+        ub_imports = value(model2.relative_id_bound[i,j]) * import_envelope(model2, j)
+        ub_imports = max(ub_imports, 10 * error / error_scale)
+        return min(ub_demand, ub_imports)
     def trade_bounds(model2, i,j):
         if i == j:
             return (error/error_scale+model2.self_supply[j] * model2.demand03[j], None)
         else:
-            ub_demand = value(model2.relative_sd_bound[i,j]) * value(model2.demand03[j])
-            ub_imports = value(model2.relative_id_bound[i,j]) * import_envelope(model2, j) # value(model2.imports_ref[j])
-            ub_imports = max(ub_imports, 10 * error / error_scale)
-            return (error/error_scale, min(ub_demand, ub_imports))
+            return (error/error_scale, None)
+            
     
     if year_select == 2020:
         model2.trade3 = Var(model2.i, model2.i, initialize=trade_calib,  bounds=(error/error_scale, None), doc='trade3')
@@ -448,12 +452,16 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, epsi
     def eq_SPRICEDIF(model2, i):
             return complements(model2.C[i] + model2.D[i] * model2.supply[i] >= model2.prodprice3[i] , model2.supply[i]>=len(country_info.supply)*(error/error_scale))
 
-    def eq_PRLINK2(model2, i, j):
+    def route_cost(model2, i, j):
+        # price of i's crop delivered in j (same formulas as before)
         if model2.existing_trade_binary[i,j]==1:
-            return complements(model2.prodprice3[i] + model2.calib[i,j]+ model2.tariff3[i,j] + (model2.tc03[i,j]-model2.calib[i,j]) * pow(model2.trade3[i,j]/model2.existing_trade[i,j], 1/model2.eps) >= model2.conprice3[j], model2.trade3[i,j]>=(error/error_scale))
+            return model2.prodprice3[i] + model2.calib[i,j]+ model2.tariff3[i,j] + (model2.tc03[i,j]-model2.calib[i,j]) * pow(model2.trade3[i,j]/model2.existing_trade[i,j], 1/model2.eps)
         else:
-            return complements(1.2* model2.prodprice3[i] + model2.calib[i,j] + model2.tariff3[i,j]+ (model2.tc03[i,j]-model2.calib[i,j]) + model2.sigma * model2.trade3[i,j]  >= model2.conprice3[j], model2.trade3[i,j]>=(error/error_scale))
+            return 1.2* model2.prodprice3[i] + model2.calib[i,j] + model2.tariff3[i,j]+ (model2.tc03[i,j]-model2.calib[i,j]) + model2.sigma * model2.trade3[i,j]
+    def eq_PRLINK2(model2, i, j):
+        return complements(route_cost(model2, i, j) >= model2.conprice3[j], model2.trade3[i,j] >= model2.trade3[i,j].lb)
 
+    
     ### add constraints
     model2.eq_PROD = Complementarity(model2.i, rule = eq_PROD, doc='Supply >= quantity shipped')
     model2.eq_DEM = Complementarity(model2.i, rule = eq_DEM, doc='Demand <= quantity shipped')
@@ -462,7 +470,8 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, epsi
     model2.eq_PRLINK2 = Complementarity(model2.i, model2.i, rule = eq_PRLINK2, doc='price chain 2')
     
     ####-------- SOLVE --------######
-    TransformationFactory('mpec.simple_nonlinear').apply_to(model2)
+    # future years: each either-or product may be up to 0.01 instead of exactly 0 (Scholtes, 2001), which gives IPOPT room to move
+    TransformationFactory('mpec.simple_nonlinear').apply_to(model2, mpec_bound = 0.0 if year_select == 2020 else 0.01)
 
     ### choose solver
     opt = SolverFactory('ipopt', solver_io='nl')
@@ -471,10 +480,61 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, epsi
     opt.options['tol'] = 0.1
     opt.options['acceptable_tol'] = 0.1
     opt.options['max_iter'] = max_iter
-    opt.options['max_cpu_time'] = 60 * 240 ### 240 min##
+    opt.options['max_cpu_time'] = 60 * 60 ### 120 min##
     opt.options['print_level'] = 5
 
-    result=opt.solve(model2)
+    def init_helpers(model2):
+        # Pyomo's rewrite adds a helper variable to every either-or condition and leaves it empty, so IPOPT starts it at 0.
+        # Start each one at the value it stands for instead, so the solve starts from the previous period's solution
+        for comp in [model2.eq_PROD, model2.eq_DEM, model2.eq_DPRICEDIF, model2.eq_SPRICEDIF, model2.eq_PRLINK2]:
+            for b in comp.values():
+                if b.active and hasattr(b, 've'):
+                    b.v.set_value(max(0.0, value(b.ve.expr.args[1])))
+
+    if year_select == 2020:
+        result=opt.solve(model2)
+    else:
+        # caps: a flow above its cap is held at the cap and its price rule switched off,
+        # so the importer's price can sit above the delivered cost (a quota rent)
+        caps = {(i,j): trade_cap(model2, i, j) for i in model2.i for j in model2.i if i != j}
+
+        # start from last period's pattern: routes that ended last period at their cap start capped (at this period's cap)
+        capped = set(r for r in caps if r in last_capped)
+        for r in capped:
+            model2.trade3[r].fix(caps[r])
+            model2.eq_PRLINK2[r].deactivate()
+        print('starting capped:', len(capped))
+
+        init_helpers(model2)
+        result=opt.solve(model2)
+        released_before = set()
+        failed_in_row = 0
+        for k in range(20):
+            # two solves in a row that did not converge: this period is stuck, stop here
+            failed_in_row = 0 if str(result.solver.termination_condition) in ['optimal', 'locallyOptimal'] else failed_in_row + 1
+            if failed_in_row == 2:
+                print('two solves in a row did not converge, stopping cap passes')
+                break
+            # overshoots under 1 tonne are solver noise, not a broken cap
+            over = [r for r in caps if r not in capped and value(model2.trade3[r]) > 1.001 * caps[r] + 0.001]
+            # a route that was released once and goes over its cap again stays capped (stops flip-flopping)
+            release = [r for r in capped if r not in released_before and value(model2.conprice3[r[1]]) < 0.995 * value(route_cost(model2, *r))]
+            print('cap pass', k+1, result.solver.termination_condition, '| newly capped:', len(over), '| released:', len(release))
+            if len(over) + len(release) == 0:
+                break
+            for r in over:
+                model2.trade3[r].fix(caps[r])
+                model2.eq_PRLINK2[r].deactivate()
+                capped.add(r)
+            for r in release:
+                model2.trade3[r].unfix()
+                model2.eq_PRLINK2[r].activate()
+                capped.discard(r)
+                released_before.add(r)
+            init_helpers(model2)
+            result = opt.solve(model2)
+        else:
+            print('cap passes did not settle after 20 solves')
 
     print(result.solver.termination_condition)
 
@@ -493,10 +553,14 @@ def shock_trade_clearance(country_info, bilateral_info, eps_val, sigma_val, epsi
     output_supply =  np.sum(list(model2.supply.extract_values().values()))/1e6
     output_demand =  np.sum(list(model2.demand.extract_values().values()))/1e6
     print(year_select, initial_supply, output_supply, initial_demand, output_demand)
-    logging.info(f"{year_select}, {initial_supply}, {output_supply}, {initial_demand}, {output_demand}")
     
     ### process output
     trade, country_output = process_final_output(model = model2, year_select= year_select, crop_code = crop_code, SSP = SSP, scen = scen, error = error, error_scale = error_scale)
+    country_output['solver_status'] = str(result.solver.termination_condition)
+
+    # flag routes that ended this period at their cap, so the next period starts with them capped
+    if year_select != 2020:
+        trade['capped'] = [int((i,j) in capped) for i, j in zip(trade['from_abbreviation'], trade['to_abbreviation'])]
 
     return trade, country_output
 #
