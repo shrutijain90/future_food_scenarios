@@ -18,24 +18,38 @@ def get_model_demand_2020(categories):
         'abbreviation': 'Abbreviation', 'demand_q': 'demand_model_2020'})
     return demand
 
-def get_demand_scn(food_group, categories):
+def get_demand_scn(food_group, categories, K=3):
     
     cons = pd.read_csv('../../OPSIS/Data/Future_production_demand_data/demand_scn_food_feed_other.csv') # lancet scenarios with feed and other included
     cons = cons[(cons['food_group']==food_group) & (cons['year']>=2020)]
-    cons['demand_q'] = cons['food_lancet_total_est'] + cons['feed_lancet_total_est'] + cons['other_lancet_total_est']# cons['other_fao_total'] 
+    cons['demand_q'] = cons['food_lancet_total_est'] + cons['feed_lancet_total_est'] + cons['other_lancet_total_est']
     cons = cons[['region', 'kcal_scn', 'SSP_scn', 'diet_scn', 'year',
                  'food_group', 'demand_q']].rename(columns={'region': 'Abbreviation'})
     cons.loc[cons['demand_q']==0, 'demand_q'] = 1 #to prevent nulls and infs
     cons = cons.merge(cons[cons['year']==2020].rename(columns={'demand_q': 'demand_2020'}).drop('year', axis=1))
     cons['scaling_factor_demand'] = cons['demand_q'] / cons['demand_2020']
-    cons = cons.drop(['demand_q', 'demand_2020', 'food_group'], axis=1)
 
-    # to prevent the demand for some commodities (nuts_seeds and oil_veg) in some countries (LSO, TKM; BTN, COD, PNG, SOM) from exploding
-    cons = cons.merge(cons[cons['scaling_factor_demand']<2000].groupby(['kcal_scn', 'diet_scn', 'year'])[[
-        'scaling_factor_demand']].max().reset_index().rename(columns={'scaling_factor_demand': 'scaling_factor_demand_max'}))
-    print(cons[['scaling_factor_demand', 'scaling_factor_demand_max']].describe())
-    cons.loc[cons['scaling_factor_demand']>2000, 'scaling_factor_demand'] = cons.loc[cons['scaling_factor_demand']>2000]['scaling_factor_demand_max']
-    cons = cons.drop('scaling_factor_demand_max', axis=1)
+    # where a country's growth is extreme (> K x global growth), its lancet 2020 value is close to zero and the ratio is unreliable;
+    # for these, add the lancet change (rescaled to FAOSTAT equivalents) to the model's 2020 demand instead
+    cons = cons.merge(get_model_demand_2020(categories), how='left')
+    cons['demand_model_2020'] = cons['demand_model_2020'].fillna(0)
+    bmk = cons[(cons['year']==2020) & (cons['diet_scn']=='BMK') & (cons['demand_model_2020']>0)]
+    conv = (bmk.groupby('kcal_scn')['demand_model_2020'].sum() / bmk.groupby('kcal_scn')['demand_2020'].sum()).rename('conv').reset_index()
+    cons = cons.merge(conv) # converts lancet quantities to FAOSTAT equivalents
+    glob = cons.groupby(['kcal_scn', 'diet_scn', 'year'])[['demand_q', 'demand_2020']].sum().reset_index()
+    glob['scaling_global'] = (glob['demand_q'] / glob['demand_2020']).clip(lower=1)
+    cons = cons.merge(glob[['kcal_scn', 'diet_scn', 'year', 'scaling_global']])
+    cons['extreme'] = cons['scaling_factor_demand'] > K * cons['scaling_global']
+    # decided once per country and scenario (if extreme in any year), so the path over years has no jumps
+    cons['replace'] = cons.groupby(['Abbreviation', 'kcal_scn', 'SSP_scn', 'diet_scn'])['extreme'].transform('any') \
+                      & (cons['conv'] * cons['demand_2020'] < cons['demand_model_2020'])
+    increase = cons['demand_q'] >= cons['demand_2020']
+    cons.loc[cons['replace'] & increase, 'scaling_factor_demand'] = \
+        1 + cons['conv'] * (cons['demand_q'] - cons['demand_2020']) / cons['demand_model_2020']
+    print(food_group, 'country-scenario combinations replaced:',
+          cons.loc[cons['replace'], ['Abbreviation', 'kcal_scn', 'diet_scn']].drop_duplicates().shape[0])
+    cons = cons.drop(['demand_q', 'demand_2020', 'food_group', 'demand_model_2020', 'conv',
+                      'scaling_global', 'extreme', 'replace'], axis=1)
     
     for category in categories:
         cons['IMPACT_code'] = category
