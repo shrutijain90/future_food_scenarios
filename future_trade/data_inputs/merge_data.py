@@ -56,8 +56,8 @@ def get_transport_data():
         transport_country = transport_country[['from_id', 'to_id', 'from_iso3', 'to_iso3', 
                'transport_USD_t', 'time_h', 'distance_km', 'border_USD_t', 'mode']]
         transport_country['trade_USD_t'] = transport_country['transport_USD_t'] + transport_country['border_USD_t']
-        transport_country['customs_cost'] = np.NaN
-        transport_country['freight_USD_t'] = np.NaN
+        transport_country['customs_cost'] = np.nan
+        transport_country['freight_USD_t'] = np.nan
         
         transport_country = transport_country.sort_values(by=['from_id', 'to_id', 'transport_USD_t']).reset_index(drop=True)
         transport_country = transport_country.drop_duplicates(subset=['from_id', 'to_id'], keep='first')
@@ -75,8 +75,8 @@ def get_transport_data():
                'transport_USD_t', 'time_h', 'distance_km', 'mode']]
     maritime_country['border_USD_t'] = 0
     maritime_country['trade_USD_t'] = maritime_country['transport_USD_t'] + maritime_country['border_USD_t']
-    maritime_country['customs_cost'] = np.NaN
-    maritime_country['freight_USD_t'] = np.NaN
+    maritime_country['customs_cost'] = np.nan
+    maritime_country['freight_USD_t'] = np.nan
     transport_admin_country = pd.concat([transport_admin_country, maritime_country], ignore_index=True)
     transport_admin_country = transport_admin_country.sort_values(by=['from_id', 'to_id', 'transport_USD_t']).reset_index(drop=True)
     transport_admin_country = transport_admin_country.drop_duplicates(subset=['from_id', 'to_id'], keep='first')
@@ -144,9 +144,16 @@ def get_supply_elas():
         g.loc[g['supply_elas'].isna(), 'supply_elas'] = g['supply_elas'].mean()
         return g
 
-    supply_elas = pd.read_csv('../../OPSIS/Data/Future_production_demand_data/IMPACT-master/DriverAssumptions/Elasticities_Supply/AreaElas.csv', 
-                              header=None)
-    supply_elas.columns = ['IMPACT_code','FPU','Irr','supply_elas']
+    elas_dir = '../../OPSIS/Data/Future_production_demand_data/IMPACT-master/DriverAssumptions/Elasticities_Supply/'
+    area_elas = pd.read_csv(elas_dir + 'AreaElas.csv', header=None)
+    area_elas.columns = ['IMPACT_code','FPU','Irr','area_elas']
+    yld_elas = pd.read_csv(elas_dir + 'YLDELAS.csv', header=None)
+    yld_elas.columns = ['IMPACT_code','FPU','Irr','yld_elas']
+    
+    supply_elas = area_elas.merge(yld_elas, how='left')
+    supply_elas['supply_elas'] = supply_elas['area_elas'] + supply_elas['yld_elas'].fillna(0)
+    supply_elas = supply_elas.drop(['area_elas', 'yld_elas'], axis=1)
+
     supply_elas = supply_elas[supply_elas['IMPACT_code'].isin(['jwhea', 'jrice', 'jmaiz', 'jbarl',
                                                                'jmill', 'jsorg', 'jocer', 'jcass',
                                                                'jpota', 'jyams', 'jswpt', 'jorat',
